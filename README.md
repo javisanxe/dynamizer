@@ -1,0 +1,3 @@
+# Dynamizer
+
+Initializing project structure...
