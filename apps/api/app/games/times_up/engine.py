@@ -1,120 +1,120 @@
 import random
-from app.models.juego import EstadoJuego, FaseTimesUp, Turno
-from app.models.sala import Sala
+from app.models.game import GameState, TimesUpPhase, Turn
+from app.models.room import Room
 from app.games.times_up.cards import get_default_cards
 from app.games.times_up.config import TimesUpConfig
 
 
 class TimesUpEngine:
     """
-    Motor de juego para Times Up.
+    Game engine for Times Up.
 
-    Fases:
-      Ronda 1 — describir con palabras (se pueden pasar cartas)
-      Ronda 2 — una sola palabra (sin pasar)
-      Ronda 3 — mímica (sin palabras)
+    Phases:
+      Round 1 — describe with words (cards can be passed)
+      Round 2 — one word only (no passing)
+      Round 3 — mime (no words)
 
-    Al final de cada ronda el mazo se reinicia con todas las cartas.
-    Las puntuaciones se acumulan entre rondas.
+    At the end of each round the deck is reset with all cards.
+    Scores accumulate across rounds.
     """
 
-    def inicializar(self, sala: Sala, config: TimesUpConfig = TimesUpConfig()) -> EstadoJuego:
-        cartas = get_default_cards()
-        n_cartas = config.cartas_por_jugador * len(sala.jugadores)
-        mazo = random.sample(cartas, min(n_cartas, len(cartas)))
+    def initialize(self, room: Room, config: TimesUpConfig = TimesUpConfig()) -> GameState:
+        cards = get_default_cards()
+        n_cards = config.cards_per_player * len(room.players)
+        deck = random.sample(cards, min(n_cards, len(cards)))
 
-        orden = [j.id for j in sala.jugadores]
-        random.shuffle(orden)
+        order = [p.id for p in room.players]
+        random.shuffle(order)
 
-        return EstadoJuego(
-            sala_id=sala.id,
-            fase=FaseTimesUp.RONDA_1,
-            orden_jugadores=orden,
-            indice_turno=0,
-            mazo=mazo,
-            puntuaciones={j.id: 0 for j in sala.jugadores},
-            ronda_puntuaciones={j.id: 0 for j in sala.jugadores},
+        return GameState(
+            room_id=room.id,
+            phase=TimesUpPhase.ROUND_1,
+            player_order=order,
+            turn_index=0,
+            deck=deck,
+            scores={p.id: 0 for p in room.players},
+            round_scores={p.id: 0 for p in room.players},
         )
 
-    def iniciar_turno(self, estado: EstadoJuego) -> EstadoJuego:
-        jugador_id = estado.orden_jugadores[estado.indice_turno]
-        estado.turno_actual = Turno(jugador_id=jugador_id, activo=True)
-        return estado
+    def start_turn(self, state: GameState) -> GameState:
+        player_id = state.player_order[state.turn_index]
+        state.current_turn = Turn(player_id=player_id, active=True)
+        return state
 
-    def carta_adivinada(self, estado: EstadoJuego, carta_id: str) -> EstadoJuego:
-        turno = estado.turno_actual
-        if not turno or not turno.activo:
-            raise ValueError("No hay turno activo")
+    def card_guessed(self, state: GameState, card_id: str) -> GameState:
+        turn = state.current_turn
+        if not turn or not turn.active:
+            raise ValueError("No active turn")
 
-        carta = next((c for c in estado.mazo if c.id == carta_id), None)
-        if not carta:
-            raise ValueError(f"Carta {carta_id} no encontrada en el mazo")
+        card = next((c for c in state.deck if c.id == card_id), None)
+        if not card:
+            raise ValueError(f"Card {card_id} not found in deck")
 
-        estado.mazo.remove(carta)
-        carta.adivinada = True
-        estado.descartadas.append(carta)
-        turno.cartas_adivinadas.append(carta_id)
+        state.deck.remove(card)
+        card.guessed = True
+        state.discarded.append(card)
+        turn.guessed_cards.append(card_id)
 
-        jugador_id = turno.jugador_id
-        estado.puntuaciones[jugador_id] = estado.puntuaciones.get(jugador_id, 0) + 1
-        estado.ronda_puntuaciones[jugador_id] = estado.ronda_puntuaciones.get(jugador_id, 0) + 1
+        player_id = turn.player_id
+        state.scores[player_id] = state.scores.get(player_id, 0) + 1
+        state.round_scores[player_id] = state.round_scores.get(player_id, 0) + 1
 
-        return estado
+        return state
 
-    def carta_pasada(self, estado: EstadoJuego, carta_id: str) -> EstadoJuego:
-        if estado.fase != FaseTimesUp.RONDA_1:
-            raise ValueError("Solo se puede pasar en la ronda 1")
+    def card_passed(self, state: GameState, card_id: str) -> GameState:
+        if state.phase != TimesUpPhase.ROUND_1:
+            raise ValueError("Cards can only be passed in round 1")
 
-        turno = estado.turno_actual
-        if not turno or not turno.activo:
-            raise ValueError("No hay turno activo")
+        turn = state.current_turn
+        if not turn or not turn.active:
+            raise ValueError("No active turn")
 
-        carta = next((c for c in estado.mazo if c.id == carta_id), None)
-        if not carta:
-            raise ValueError(f"Carta {carta_id} no encontrada")
+        card = next((c for c in state.deck if c.id == card_id), None)
+        if not card:
+            raise ValueError(f"Card {card_id} not found")
 
-        estado.mazo.remove(carta)
-        estado.mazo.append(carta)
-        turno.cartas_pasadas.append(carta_id)
-        return estado
+        state.deck.remove(card)
+        state.deck.append(card)
+        turn.passed_cards.append(card_id)
+        return state
 
-    def finalizar_turno(self, estado: EstadoJuego) -> EstadoJuego:
-        if estado.turno_actual:
-            estado.turno_actual.activo = False
+    def end_turn(self, state: GameState) -> GameState:
+        if state.current_turn:
+            state.current_turn.active = False
 
-        if not estado.mazo:
-            return self._avanzar_fase(estado)
+        if not state.deck:
+            return self._advance_phase(state)
 
-        estado.indice_turno = (estado.indice_turno + 1) % len(estado.orden_jugadores)
-        return estado
+        state.turn_index = (state.turn_index + 1) % len(state.player_order)
+        return state
 
-    def _avanzar_fase(self, estado: EstadoJuego) -> EstadoJuego:
-        fases = [FaseTimesUp.RONDA_1, FaseTimesUp.RONDA_2, FaseTimesUp.RONDA_3]
-        indice_actual = fases.index(estado.fase)
+    def _advance_phase(self, state: GameState) -> GameState:
+        phases = [TimesUpPhase.ROUND_1, TimesUpPhase.ROUND_2, TimesUpPhase.ROUND_3]
+        current_index = phases.index(state.phase)
 
-        if indice_actual >= len(fases) - 1:
-            estado.turno_actual = None
-            return estado
+        if current_index >= len(phases) - 1:
+            state.current_turn = None
+            return state
 
-        for carta in estado.descartadas:
-            carta.adivinada = False
-        estado.mazo = estado.descartadas.copy()
-        random.shuffle(estado.mazo)
-        estado.descartadas = []
-        estado.ronda_puntuaciones = {k: 0 for k in estado.puntuaciones}
-        estado.fase = fases[indice_actual + 1]
-        estado.indice_turno = 0
-        return estado
+        for card in state.discarded:
+            card.guessed = False
+        state.deck = state.discarded.copy()
+        random.shuffle(state.deck)
+        state.discarded = []
+        state.round_scores = {k: 0 for k in state.scores}
+        state.phase = phases[current_index + 1]
+        state.turn_index = 0
+        return state
 
-    def siguiente_turno(self, estado: EstadoJuego) -> EstadoJuego:
-        estado = self.finalizar_turno(estado)
-        if estado.mazo:
-            estado = self.iniciar_turno(estado)
-        return estado
+    def next_turn(self, state: GameState) -> GameState:
+        state = self.end_turn(state)
+        if state.deck:
+            state = self.start_turn(state)
+        return state
 
-    def leaderboard(self, estado: EstadoJuego) -> list[dict]:
+    def leaderboard(self, state: GameState) -> list[dict]:
         return sorted(
-            [{"jugador_id": k, "puntos": v} for k, v in estado.puntuaciones.items()],
-            key=lambda x: x["puntos"],
+            [{"player_id": k, "points": v} for k, v in state.scores.items()],
+            key=lambda x: x["points"],
             reverse=True,
         )
