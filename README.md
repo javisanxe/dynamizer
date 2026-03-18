@@ -1,110 +1,110 @@
 # Dynamizer
 
-Juegos sociales en tiempo real para grupos. Crea una sala, comparte el QR con tus amigos, y jugad juntos desde el móvil.
+Real-time social games for groups. Create a room, share the QR with your friends, and play together from your phone.
 
 ---
 
-## Índice
+## Table of Contents
 
-- [¿Qué es Dynamizer?](#qué-es-dynamizer)
-- [Stack tecnológico](#stack-tecnológico)
-- [Arquitectura del sistema](#arquitectura-del-sistema)
-- [Estructura del repositorio](#estructura-del-repositorio)
-- [Cómo levantar en local](#cómo-levantar-en-local)
-- [Cómo ejecutar los tests](#cómo-ejecutar-los-tests)
-- [Flujo de una partida](#flujo-de-una-partida)
-- [Eventos WebSocket](#eventos-websocket)
-- [Cómo añadir un nuevo juego](#cómo-añadir-un-nuevo-juego)
+- [What is Dynamizer?](#what-is-dynamizer)
+- [Technology Stack](#technology-stack)
+- [System Architecture](#system-architecture)
+- [Repository Structure](#repository-structure)
+- [How to Run Locally](#how-to-run-locally)
+- [How to Run Tests](#how-to-run-tests)
+- [Game Flow](#game-flow)
+- [WebSocket Events](#websocket-events)
+- [How to Add a New Game](#how-to-add-a-new-game)
 - [Roadmap](#roadmap)
 
 ---
 
-## ¿Qué es Dynamizer?
+## What is Dynamizer?
 
-Dynamizer es una plataforma de juegos sociales diseñada para grupos de amigos en quedadas. El concepto es simple:
+Dynamizer is a social gaming platform designed for groups of friends hanging out. The concept is simple:
 
-1. Una persona crea una sala desde su móvil o PC
-2. Comparte el QR generado automáticamente
-3. Los demás escanean y se unen con su nombre y un emoji
-4. Todos juegan en tiempo real desde sus móviles
-5. Al terminar, se muestra el leaderboard final
+1. One person creates a room from their phone or PC
+2. Share the automatically generated QR code
+3. Others scan it and join with their name and an emoji
+4. Everyone plays in real-time from their phones
+5. At the end, the final leaderboard is shown
 
-Los juegos están pensados para ambientes informales — cervezas, risas, competición sana. El primero implementado es **Time's Up**, el juego de adivinar personajes por descripciones, pistas de una palabra y mímica.
+The games are designed for casual settings — drinks, laughs, healthy competition. The first game implemented is **Time's Up**, the game of guessing characters through descriptions, one-word clues, and mime.
 
-No hay cuentas de usuario. Cada jugador entra con su nombre y emoji. Anónimo, rápido, sin fricciones.
+No user accounts needed. Each player enters with their name and emoji. Anonymous, fast, frictionless.
 
 ---
 
-## Stack tecnológico
+## Technology Stack
 
-| Capa | Tecnología | Por qué |
+| Layer | Technology | Why |
 |---|---|---|
-| **Frontend** | Next.js 14 + TypeScript | App Router, SSR para carga rápida en móvil, tipado compartido con backend |
-| **Backend** | Python 3.11 + FastAPI | Async nativo, Pydantic para validación, ecosistema conocido |
-| **WebSockets** | python-socketio + socket.io-client | Reconexión automática, rooms, broadcast. Estándar para juegos en tiempo real |
-| **Estado en tiempo real** | Redis | Estado efímero de salas activas, Pub/Sub para escalar a múltiples instancias |
-| **Base de datos** | PostgreSQL | Persistencia de historial, leaderboards globales (fase futura) |
-| **Deploy inicial** | Vercel (frontend) + Railway (backend) | Gratis para empezar, sin configuración de infraestructura |
-| **Deploy futuro** | AWS (CloudFront + ECS Fargate + RDS + ElastiCache) | Escalado real cuando haya tráfico |
+| **Frontend** | Next.js 14 + TypeScript | App Router, SSR for fast mobile loading, shared types with backend |
+| **Backend** | Python 3.11 + FastAPI | Native async, Pydantic for validation, familiar ecosystem |
+| **WebSockets** | python-socketio + socket.io-client | Auto-reconnect, rooms, broadcast. Standard for real-time games |
+| **Real-time State** | Redis | Ephemeral state for active rooms, Pub/Sub for scaling to multiple instances |
+| **Database** | PostgreSQL | History persistence, global leaderboards (future phase) |
+| **Initial Deploy** | Vercel (frontend) + Railway (backend) | Free to start, no infrastructure setup |
+| **Future Deploy** | AWS (CloudFront + ECS Fargate + RDS + ElastiCache) | Real scaling when there is traffic |
 
-### Por qué TypeScript en el frontend
+### Why TypeScript on the frontend
 
-El punto crítico de la app son los eventos WebSocket. Con TypeScript, los tipos de cada evento (ver `apps/web/src/types/eventos.ts`) se definen una sola vez y el compilador avisa si el frontend envía algo que no coincide con lo que espera el backend. Evita bugs silenciosos en runtime.
+The critical point of the app is WebSocket events. With TypeScript, the types for each event (see `apps/web/src/types/events.ts`) are defined once and the compiler warns if the frontend sends something that doesn't match what the backend expects. This avoids silent runtime bugs.
 
 ---
 
-## Arquitectura del sistema
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        CLIENTE                               │
+│                         CLIENT                               │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │              Next.js (Vercel / CloudFront)            │   │
 │  │                                                      │   │
-│  │  / (Home)          → crear sala / unirse con código  │   │
-│  │  /sala/[id]        → lobby + QR + lista de jugadores │   │
-│  │  /sala/[id]/jugar  → vista de juego en tiempo real   │   │
+│  │  / (Home)           → create room / join with code   │   │
+│  │  /room/[id]         → lobby + QR + player list       │   │
+│  │  /room/[id]/play    → active game view               │   │
 │  │                                                      │   │
 │  │  useSocket() ──── socket.io-client ──────────────────┼───┼──┐
 │  └──────────────────────────────────────────────────────┘   │  │
 └─────────────────────────────────────────────────────────────┘  │
                                                                    │ WebSocket
 ┌─────────────────────────────────────────────────────────────┐  │
-│                        SERVIDOR                              │  │
+│                         SERVER                               │  │
 │                                                              │  │
 │  ┌──────────────────────────────────────────────────────┐   │  │
 │  │     FastAPI + python-socketio (Railway / ECS)         │◄──┼──┘
 │  │                                                      │   │
-│  │  REST:    POST /api/salas/      → crear sala         │   │
-│  │           GET  /api/salas/{id}  → estado de sala     │   │
+│  │  REST:    POST /api/rooms/      → create room        │   │
+│  │           GET  /api/rooms/{id}  → get room state     │   │
 │  │                                                      │   │
-│  │  Sockets: sala:unirse           → unir jugador       │   │
-│  │           sala:salir            → desconectar        │   │
-│  │           juego:iniciar         → arrancar partida   │   │
-│  │           juego:carta_adivinada → sumar punto        │   │
-│  │           juego:carta_pasada    → pasar carta        │   │
+│  │  Sockets: room:join             → player joins       │   │
+│  │           room:leave            → player leaves      │   │
+│  │           game:start            → start game         │   │
+│  │           game:card_guessed     → add point          │   │
+│  │           game:card_passed      → pass card          │   │
 │  └────────────────────┬─────────────────────────────────┘   │
 │                        │                                      │
 │          ┌─────────────┴──────────────┐                      │
 │          │                            │                       │
 │  ┌───────▼────────┐        ┌──────────▼───────┐              │
 │  │  Redis          │        │  PostgreSQL       │              │
-│  │  (estado salas) │        │  (historial,      │              │
-│  │  TTL: 6 horas   │        │   leaderboards)   │              │
+│  │  (room state)   │        │  (history,        │              │
+│  │  TTL: 6 hours   │        │   leaderboards)   │              │
 │  └────────────────┘        └──────────────────┘              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Flujo de datos de una sala
+### Room data flow
 
-- El **estado activo** de cada sala (jugadores conectados, estado del juego, mazo de cartas) vive en **Redis** con TTL de 6 horas. Es rápido y efímero — no necesita persistirse en base de datos.
-- Cuando la partida termina, el resultado se guardará en **PostgreSQL** (implementación futura).
-- Los eventos WebSocket usan el sistema de **rooms** de Socket.io: cada sala tiene su propio canal, y los eventos solo se emiten a los jugadores de esa sala.
+- The **active state** of each room (connected players, game state, card deck) lives in **Redis** with a 6-hour TTL. It is fast and ephemeral — no need to persist to the database.
+- When the game ends, the result will be saved to **PostgreSQL** (future implementation).
+- WebSocket events use Socket.io's **rooms** system: each room has its own channel, and events are only emitted to the players in that room.
 
 ---
 
-## Estructura del repositorio
+## Repository Structure
 
 ```
 dynamizer/
@@ -113,20 +113,20 @@ dynamizer/
 │   ├── web/                          # Frontend — Next.js + TypeScript
 │   │   ├── src/
 │   │   │   ├── app/                  # Next.js App Router
-│   │   │   │   ├── page.tsx          # Home: crear sala / unirse
-│   │   │   │   ├── __tests__/        # Tests de páginas
-│   │   │   │   └── sala/
+│   │   │   │   ├── page.tsx          # Home: create room / join
+│   │   │   │   ├── __tests__/        # Page tests
+│   │   │   │   └── room/
 │   │   │   │       └── [id]/
-│   │   │   │           ├── page.tsx          # Lobby de sala + QR
-│   │   │   │           └── jugar/
-│   │   │   │               └── page.tsx      # Vista de juego activo
+│   │   │   │           ├── page.tsx          # Room lobby + QR
+│   │   │   │           └── play/
+│   │   │   │               └── page.tsx      # Active game view
 │   │   │   ├── hooks/
-│   │   │   │   ├── useSocket.ts      # Hook de conexión WebSocket
-│   │   │   │   ├── useGame.ts        # Hook de estado del juego
-│   │   │   │   └── __tests__/        # Tests de hooks
+│   │   │   │   ├── useSocket.ts      # WebSocket connection hook
+│   │   │   │   ├── useGame.ts        # Game state hook
+│   │   │   │   └── __tests__/        # Hook tests
 │   │   │   └── types/
-│   │   │       ├── sala.ts           # Tipos: Sala, Jugador, EstadoSala
-│   │   │       └── eventos.ts        # Tipos de eventos WebSocket
+│   │   │       ├── room.ts           # Types: Room, Player, RoomStatus
+│   │   │       └── events.ts         # WebSocket event types
 │   │   ├── next.config.ts
 │   │   ├── tsconfig.json
 │   │   ├── jest.config.ts
@@ -134,320 +134,320 @@ dynamizer/
 │   │
 │   └── api/                          # Backend — FastAPI + Python
 │       ├── app/
-│       │   ├── main.py               # Entry point: FastAPI + Socket.io montado
+│       │   ├── main.py               # Entry point: FastAPI + Socket.io mounted
 │       │   ├── config.py             # Settings via pydantic-settings
 │       │   ├── models/
-│       │   │   ├── sala.py           # Sala, Jugador, ConfiguracionSala
-│       │   │   └── juego.py          # EstadoJuego, Turno, Carta, FaseTimesUp
+│       │   │   ├── room.py           # Room, Player, RoomConfig
+│       │   │   └── game.py           # GameState, Turn, Card, TimesUpPhase
 │       │   ├── routers/
-│       │   │   └── salas.py          # REST: POST /salas, GET /salas/{id}
+│       │   │   └── rooms.py          # REST: POST /rooms, GET /rooms/{id}
 │       │   ├── services/
-│       │   │   ├── sala_service.py   # CRUD de salas en Redis
-│       │   │   └── juego_service.py  # Orquestación de partidas
+│       │   │   ├── room_service.py   # Room CRUD in Redis
+│       │   │   └── game_service.py   # Game orchestration
 │       │   ├── sockets/
-│       │   │   ├── sala.py           # Eventos: sala:unirse, sala:salir
-│       │   │   └── juego.py          # Eventos: juego:iniciar, carta_adivinada, carta_pasada
+│       │   │   ├── room.py           # Events: room:join, room:leave
+│       │   │   └── game.py           # Events: game:start, card_guessed, card_passed
 │       │   └── games/
 │       │       └── times_up/
-│       │           ├── engine.py     # Lógica completa de Time's Up
-│       │           ├── cards.py      # Mazo de cartas por defecto
-│       │           └── config.py     # Configuración del juego
+│       │           ├── engine.py     # Complete Time's Up game logic
+│       │           ├── cards.py      # Default card deck
+│       │           └── config.py     # Game configuration
 │       ├── tests/
-│       │   ├── conftest.py           # Fixtures: client HTTP, mock Redis
-│       │   ├── test_health.py        # Test del endpoint /health
-│       │   ├── test_salas.py         # Tests de modelos y API REST
-│       │   ├── test_times_up.py      # Tests del motor de Time's Up
-│       │   └── test_sala_service.py  # Tests del servicio de salas
+│       │   ├── conftest.py           # Fixtures: HTTP client, mock Redis
+│       │   ├── test_health.py        # Test for /health endpoint
+│       │   ├── test_rooms.py         # Tests for Room model and REST API
+│       │   ├── test_times_up.py      # Tests for the Time's Up engine
+│       │   └── test_room_service.py  # Tests for the room service
 │       ├── Dockerfile
 │       ├── pyproject.toml
 │       └── .env.example
 │
-├── infra/                            # Infraestructura (AWS CDK — fase futura)
-├── docker-compose.yml                # Postgres + Redis para desarrollo local
+├── infra/                            # Infrastructure (AWS CDK — future phase)
+├── docker-compose.yml                # Postgres + Redis for local development
 └── .gitignore
 ```
 
 ---
 
-## Cómo levantar en local
+## How to Run Locally
 
-### Requisitos previos
+### Prerequisites
 
-- **Docker** y **Docker Compose** instalados
+- **Docker** and **Docker Compose** installed
 - **Python 3.11+**
-- **Node.js 18+** y **npm**
+- **Node.js 18+** and **npm**
 
-### 1. Clonar el repositorio
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/javisanxe/dynamizer.git
 cd dynamizer
 ```
 
-### 2. Levantar Postgres y Redis
+### 2. Start Postgres and Redis
 
 ```bash
 docker-compose up -d
 ```
 
-Esto arranca:
-- PostgreSQL en `localhost:5432` (usuario: `dynamizer`, contraseña: `dynamizer`, db: `dynamizer`)
-- Redis en `localhost:6379`
+This starts:
+- PostgreSQL on `localhost:5432` (user: `dynamizer`, password: `dynamizer`, db: `dynamizer`)
+- Redis on `localhost:6379`
 
-Verificar que están listos:
+Verify they are ready:
 
 ```bash
 docker-compose ps
 ```
 
-### 3. Levantar el backend (FastAPI)
+### 3. Start the backend (FastAPI)
 
 ```bash
 cd apps/api
 
-# Crear entorno virtual
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate      # Linux/Mac
 # .venv\Scripts\activate       # Windows
 
-# Instalar dependencias
+# Install dependencies
 pip install -e ".[dev]"
 
-# Copiar variables de entorno
+# Copy environment variables
 cp .env.example .env
 
-# Arrancar el servidor
+# Start the server
 uvicorn app.main:asgi_app --reload --host 0.0.0.0 --port 8000
 ```
 
-El backend estará disponible en:
-- API REST: http://localhost:8000
-- Docs interactivos: http://localhost:8000/docs
+The backend will be available at:
+- REST API: http://localhost:8000
+- Interactive docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-### 4. Levantar el frontend (Next.js)
+### 4. Start the frontend (Next.js)
 
-En otra terminal:
+In another terminal:
 
 ```bash
 cd apps/web
 
-# Instalar dependencias
+# Install dependencies
 npm install
 
-# Copiar variables de entorno
+# Copy environment variables
 cp .env.example .env.local
 
-# Arrancar en modo desarrollo
+# Start in development mode
 npm run dev
 ```
 
-El frontend estará disponible en http://localhost:3000
+The frontend will be available at http://localhost:3000
 
 ---
 
-## Cómo ejecutar los tests
+## How to Run Tests
 
-### Tests del backend
+### Backend tests
 
 ```bash
 cd apps/api
 source .venv/bin/activate
 
-# Todos los tests
+# All tests
 pytest
 
-# Con cobertura
+# With coverage
 pytest --cov=app --cov-report=term-missing
 
-# Un módulo específico
+# A specific module
 pytest tests/test_times_up.py -v
 
-# Un test específico
-pytest tests/test_times_up.py::TestTimesUpEngine::test_carta_adivinada_suma_punto -v
+# A specific test
+pytest tests/test_times_up.py::TestTimesUpEngine::test_card_guessed_adds_point -v
 ```
 
-Qué cubre cada archivo de test:
+What each test file covers:
 
-| Archivo | Qué testea |
+| File | What it tests |
 |---|---|
-| `test_health.py` | Endpoint `/health` |
-| `test_salas.py` | Modelos `Sala`/`Jugador` y endpoints REST de salas |
-| `test_times_up.py` | Motor completo de Time's Up: inicialización, turnos, cartas, fases, leaderboard |
-| `test_sala_service.py` | Servicio de salas con Redis mockeado |
+| `test_health.py` | `/health` endpoint |
+| `test_rooms.py` | `Room`/`Player` models and room REST endpoints |
+| `test_times_up.py` | Complete Time's Up engine: initialization, turns, cards, phases, leaderboard |
+| `test_room_service.py` | Room service with mocked Redis |
 
-### Tests del frontend
+### Frontend tests
 
 ```bash
 cd apps/web
 
-# Todos los tests
+# All tests
 npm test
 
-# Modo watch (re-ejecuta en cada cambio)
+# Watch mode (re-runs on each change)
 npm run test:watch
 
-# Con cobertura
+# With coverage
 npm test -- --coverage
 ```
 
-Qué cubre cada archivo de test:
+What each test file covers:
 
-| Archivo | Qué testea |
+| File | What it tests |
 |---|---|
-| `hooks/__tests__/useSocket.test.ts` | Hook de conexión WebSocket |
-| `hooks/__tests__/useGame.test.ts` | Hook de estado del juego |
-| `app/__tests__/page.test.tsx` | Página Home: renderizado y validaciones |
+| `hooks/__tests__/useSocket.test.ts` | WebSocket connection hook |
+| `hooks/__tests__/useGame.test.ts` | Game state hook |
+| `app/__tests__/page.test.tsx` | Home page: rendering and validations |
 
 ---
 
-## Flujo de una partida
+## Game Flow
 
 ```
-1. HOST crea sala
-   POST /api/salas/ → { sala_id, jugador_id, qr_url }
-   Redirige a /sala/{id}
-   Se genera QR con la URL de la sala
+1. HOST creates room
+   POST /api/rooms/ → { room_id, player_id, qr_url }
+   Redirects to /room/{id}
+   QR is generated with the room URL
 
-2. JUGADORES escanean QR
-   Acceden a /sala/{id}
-   Introducen nombre + emoji
-   Emiten → sala:unirse { sala_id, nombre, emoji }
-   Reciben ← sala:unido { jugador_id }  (guardan en localStorage)
-   Todos reciben ← sala:actualizada { ...sala }
+2. PLAYERS scan QR
+   Access /room/{id}
+   Enter name + emoji
+   Emit → room:join { room_id, name, emoji }
+   Receive ← room:joined { player_id }  (saved to localStorage)
+   Everyone receives ← room:updated { ...room }
 
-3. HOST inicia la partida
-   (botón visible solo para el host cuando hay ≥2 jugadores)
-   Emite → juego:iniciar { sala_id, jugador_id }
-   Todos reciben ← juego:iniciado { ...estado_juego }
-   Todos redirigen a /sala/{id}/jugar
+3. HOST starts the game
+   (button visible only to the host when there are ≥2 players)
+   Emits → game:start { room_id, player_id }
+   Everyone receives ← game:started { ...game_state }
+   Everyone redirects to /room/{id}/play
 
-4. TURNO ACTIVO
-   El jugador cuyo turno es describe/actúa
-   Por cada carta adivinada:
-     Emite → juego:carta_adivinada { sala_id, jugador_id, carta_id }
-     Todos reciben ← juego:actualizado
-   Por cada carta pasada (solo ronda 1):
-     Emite → juego:carta_pasada { sala_id, jugador_id, carta_id }
-   Al acabar el tiempo → juego:fin_turno (emitido por el backend via timer)
+4. ACTIVE TURN
+   The player whose turn it is describes/acts
+   For each card guessed:
+     Emits → game:card_guessed { room_id, player_id, card_id }
+     Everyone receives ← game:updated
+   For each card passed (round 1 only):
+     Emits → game:card_passed { room_id, player_id, card_id }
+   When time runs out → game:turn_ended (emitted by backend via timer)
 
-5. FIN DE RONDA
-   Cuando el mazo se vacía → se avanza automáticamente a la siguiente fase
-   El mazo se reinicia con todas las cartas de la ronda anterior
-   Ronda 1 → Ronda 2 → Ronda 3 → FIN
+5. END OF ROUND
+   When the deck empties → automatically advance to the next phase
+   The deck is reset with all the cards from the previous round
+   Round 1 → Round 2 → Round 3 → END
 
-6. FIN DE PARTIDA
-   Todos reciben ← juego:terminado { leaderboard }
-   Se muestra clasificación final
+6. END OF GAME
+   Everyone receives ← game:finished { leaderboard }
+   Final ranking is shown
 ```
 
 ---
 
-## Eventos WebSocket
+## WebSocket Events
 
-### Eventos que emite el CLIENTE
+### Events emitted by the CLIENT
 
-| Evento | Payload | Descripción |
+| Event | Payload | Description |
 |---|---|---|
-| `sala:unirse` | `{ sala_id, nombre, emoji }` | Unirse a una sala existente |
-| `sala:salir` | `{ sala_id, jugador_id }` | Abandonar la sala |
-| `juego:iniciar` | `{ sala_id, jugador_id }` | Iniciar partida (solo host) |
-| `juego:carta_adivinada` | `{ sala_id, jugador_id, carta_id }` | Marcar carta como adivinada |
-| `juego:carta_pasada` | `{ sala_id, jugador_id, carta_id }` | Pasar carta al final del mazo (ronda 1) |
+| `room:join` | `{ room_id, name, emoji }` | Join an existing room |
+| `room:leave` | `{ room_id, player_id }` | Leave the room |
+| `game:start` | `{ room_id, player_id }` | Start the game (host only) |
+| `game:card_guessed` | `{ room_id, player_id, card_id }` | Mark a card as guessed |
+| `game:card_passed` | `{ room_id, player_id, card_id }` | Pass a card to the end of the deck (round 1) |
 
-### Eventos que recibe el CLIENTE
+### Events received by the CLIENT
 
-| Evento | Payload | Descripción |
+| Event | Payload | Description |
 |---|---|---|
-| `sala:unido` | `{ jugador_id }` | Confirmación de que te has unido |
-| `sala:actualizada` | `Sala` | Estado actualizado de la sala (jugadores, estado) |
-| `juego:iniciado` | `EstadoJuego` | Estado inicial del juego al arrancar |
-| `juego:actualizado` | `EstadoJuego` | Estado actualizado tras cada acción |
-| `juego:terminado` | `{ leaderboard }` | Fin de partida con clasificación |
-| `error` | `{ mensaje }` | Error del servidor |
+| `room:joined` | `{ player_id }` | Confirmation that you have joined |
+| `room:updated` | `Room` | Updated room state (players, status) |
+| `game:started` | `GameState` | Initial game state when starting |
+| `game:updated` | `GameState` | Updated state after each action |
+| `game:finished` | `{ leaderboard }` | End of game with ranking |
+| `error` | `{ message }` | Server error |
 
 ---
 
-## Cómo añadir un nuevo juego
+## How to Add a New Game
 
-El sistema está diseñado para ser extensible. Para añadir un nuevo juego:
+The system is designed to be extensible. To add a new game:
 
-### 1. Crear el motor del juego
+### 1. Create the game engine
 
 ```
 apps/api/app/games/
-└── mi_juego/
+└── my_game/
     ├── __init__.py
-    ├── engine.py     # Clase MiJuegoEngine con métodos: inicializar(), ...
-    ├── config.py     # Configuración específica del juego
-    └── cards.py      # Datos del juego (cartas, preguntas, etc.)
+    ├── engine.py     # MyGameEngine class with methods: initialize(), ...
+    ├── config.py     # Game-specific configuration
+    └── cards.py      # Game data (cards, questions, etc.)
 ```
 
-El motor debe implementar al menos:
+The engine must implement at least:
 
 ```python
-class MiJuegoEngine:
-    def inicializar(self, sala: Sala, config=None) -> EstadoJuego:
+class MyGameEngine:
+    def initialize(self, room: Room, config=None) -> GameState:
         ...
 
-    def siguiente_turno(self, estado: EstadoJuego) -> EstadoJuego:
+    def next_turn(self, state: GameState) -> GameState:
         ...
 
-    def leaderboard(self, estado: EstadoJuego) -> list[dict]:
+    def leaderboard(self, state: GameState) -> list[dict]:
         ...
 ```
 
-### 2. Registrar el motor
+### 2. Register the engine
 
-En `apps/api/app/services/juego_service.py`:
+In `apps/api/app/services/game_service.py`:
 
 ```python
-from app.games.mi_juego.engine import MiJuegoEngine
+from app.games.my_game.engine import MyGameEngine
 
-JUEGO_ENGINES = {
+GAME_ENGINES = {
     "times_up": TimesUpEngine,
-    "mi_juego": MiJuegoEngine,   # añadir aquí
+    "my_game": MyGameEngine,   # add here
 }
 ```
 
-### 3. Añadir componentes de UI en el frontend
+### 3. Add UI components in the frontend
 
 ```
-apps/web/src/components/juegos/
-└── mi-juego/
-    ├── MiJuegoVista.tsx
-    └── MiJuegoTurno.tsx
+apps/web/src/components/games/
+└── my-game/
+    ├── MyGameView.tsx
+    └── MyGameTurn.tsx
 ```
 
-### 4. Escribir tests
+### 4. Write tests
 
 ```
-apps/api/tests/test_mi_juego.py
+apps/api/tests/test_my_game.py
 ```
 
 ---
 
 ## Roadmap
 
-### Fase 1 — MVP (actual)
-- [x] Estructura del proyecto
-- [x] Motor de Time's Up (3 rondas)
-- [x] Salas en tiempo real con WebSocket
-- [x] QR para unirse a sala
-- [x] Tests unitarios backend y frontend
-- [ ] UI completa del juego (turno activo, temporizador, cartas)
-- [ ] Leaderboard al final de partida
+### Phase 1 — MVP (current)
+- [x] Project structure
+- [x] Time's Up engine (3 rounds)
+- [x] Real-time rooms with WebSocket
+- [x] QR code to join a room
+- [x] Unit tests for backend and frontend
+- [ ] Complete game UI (active turn, timer, cards)
+- [ ] Leaderboard at the end of the game
 
-### Fase 2 — Producto
-- [ ] Temporizador de turno gestionado por el servidor
-- [ ] Más juegos (¿Quién soy?, Pictionary, Trivial...)
-- [ ] Configuración de sala personalizable (tiempo, cartas, equipos)
-- [ ] Persistencia de partidas en PostgreSQL
-- [ ] Leaderboard histórico global
+### Phase 2 — Product
+- [ ] Server-managed turn timer
+- [ ] More games (Who am I?, Pictionary, Trivia...)
+- [ ] Customizable room settings (time, cards, teams)
+- [ ] Game persistence in PostgreSQL
+- [ ] Global historical leaderboard
 
-### Fase 3 — Escala
-- [ ] Deploy en AWS (ECS Fargate + RDS + ElastiCache)
-- [ ] CI/CD con GitHub Actions
-- [ ] Terraform para infraestructura como código
-- [ ] Soporte para múltiples instancias del backend via Redis Pub/Sub
-- [ ] PWA para instalación en móvil
+### Phase 3 — Scale
+- [ ] Deploy on AWS (ECS Fargate + RDS + ElastiCache)
+- [ ] CI/CD with GitHub Actions
+- [ ] Terraform for infrastructure as code
+- [ ] Support for multiple backend instances via Redis Pub/Sub
+- [ ] PWA for mobile installation
