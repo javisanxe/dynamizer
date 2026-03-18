@@ -2,12 +2,12 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Dynamizer',
-  description: 'Juegos sociales en tiempo real para grupos',
+  description: 'Real-time social games for groups',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body>{children}</body>
     </html>
   )
