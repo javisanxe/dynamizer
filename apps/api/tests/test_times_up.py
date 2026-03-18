@@ -113,7 +113,7 @@ class TestTimesUpEngine:
         assert lb[2]["points"] == 3
 
     def test_advance_phase_when_deck_empty(self, engine, room_with_players):
-        config = TimesUpConfig(cards_per_player=1)
+        config = TimesUpConfig(cards_per_player=3)
         state = engine.initialize(room_with_players, config)
         state = engine.start_turn(state)
 
@@ -127,7 +127,7 @@ class TestTimesUpEngine:
 
     def test_full_game_three_rounds(self, engine, room_with_players):
         """Integration test: simulates a full game until the end."""
-        config = TimesUpConfig(cards_per_player=1)
+        config = TimesUpConfig(cards_per_player=3)
         state = engine.initialize(room_with_players, config)
 
         for _ in range(3):  # 3 rounds

@@ -17,7 +17,7 @@ async def client():
 @pytest.fixture
 def mock_redis():
     """Redis mock for tests that do not require a real Redis instance."""
-    with patch("app.services.room_service.aioredis.from_url") as mock:
+    with patch("app.services.room_service.aioredis.from_url", new_callable=AsyncMock) as mock_from_url:
         redis_mock = AsyncMock()
-        mock.return_value = redis_mock
+        mock_from_url.return_value = redis_mock
         yield redis_mock
