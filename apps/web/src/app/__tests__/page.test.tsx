@@ -29,7 +29,7 @@ describe('HomePage', () => {
 
   it('shows error when trying to create a room without a name', () => {
     render(<HomePage />)
-    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+    fireEvent.click(screen.getByRole('button', { name: /create room/i }))
     expect(screen.getByText('Enter your name')).toBeInTheDocument()
   })
 
@@ -37,7 +37,7 @@ describe('HomePage', () => {
     render(<HomePage />)
     const nameInput = screen.getByPlaceholderText('Your name')
     fireEvent.change(nameInput, { target: { value: 'Ana' } })
-    fireEvent.click(screen.getByText('Join'))
+    fireEvent.click(screen.getByRole('button', { name: /join/i }))
     expect(screen.getByText('Enter the room code')).toBeInTheDocument()
   })
 })

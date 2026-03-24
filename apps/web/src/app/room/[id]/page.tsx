@@ -43,45 +43,113 @@ export default function LobbyPage() {
   const isHost = room?.host_id === playerId
 
   return (
-    <main style={{ maxWidth: 480, margin: '0 auto', padding: '2rem' }}>
-      <h1>Room {roomId}</h1>
-      <p>Socket status: {socketStatus}</p>
+    <div className="page">
+      <div className="container">
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-lg)' }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', color: 'var(--color-text)' }}>Lobby</h1>
+            <p style={{ fontSize: '0.85rem', marginTop: 'var(--space-xs)' }}>
+              Room <span className="room-code" style={{ fontSize: '1rem' }}>{roomId}</span>
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+            <span className={`status-dot ${socketStatus}`} />
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{socketStatus}</span>
+          </div>
+        </div>
 
-      {!joined && (
-        <section>
-          <h2>Join the room</h2>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-          <input value={emoji} onChange={(e) => setEmoji(e.target.value)} placeholder="Emoji" maxLength={2} />
-          <button onClick={handleJoin}>Join</button>
-        </section>
-      )}
+        {error && (
+          <div className="error-msg" style={{ marginBottom: 'var(--space-md)' }}>
+            {error}
+          </div>
+        )}
 
-      {joined && roomUrl && (
-        <section>
-          <h2>Invite your friends</h2>
-          <QRCodeSVG value={roomUrl} size={200} />
-          <p>Code: <strong>{roomId}</strong></p>
-        </section>
-      )}
+        {/* Join form — shown to players who arrived via QR */}
+        {!joined && (
+          <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+            <p className="section-title">Join the room</p>
+            <div className="input-group" style={{ marginBottom: 'var(--space-md)' }}>
+              <input
+                className="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+              />
+              <input
+                className="input input-emoji"
+                value={emoji}
+                onChange={(e) => setEmoji(e.target.value)}
+                maxLength={2}
+              />
+            </div>
+            <button className="btn btn-primary btn-full" onClick={handleJoin}>
+              Join →
+            </button>
+          </div>
+        )}
 
-      {room && (
-        <section>
-          <h2>Players ({room.players.length}/{room.config.max_players})</h2>
-          <ul>
-            {room.players.map((p) => (
-              <li key={p.id}>
-                {p.emoji} {p.name} {p.is_host ? '(host)' : ''}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+        {/* QR + code */}
+        {joined && roomUrl && (
+          <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+            <p className="section-title">Invite friends</p>
+            <div className="qr-wrapper">
+              <QRCodeSVG
+                value={roomUrl}
+                size={180}
+                bgColor="#242235"
+                fgColor="#fffffe"
+              />
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: '0.8rem', marginBottom: 'var(--space-xs)' }}>Room code</p>
+                <span className="room-code">{roomId}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {isHost && room?.players.length >= 2 && (
-        <button onClick={startGame}>Start game</button>
-      )}
-    </main>
+        {/* Player list */}
+        {room && (
+          <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+            <p className="section-title">
+              Players — {room.players.length}/{room.config.max_players}
+            </p>
+            <ul className="player-list">
+              {room.players.map((p) => (
+                <li key={p.id} className="player-item">
+                  <span className="player-emoji">{p.emoji}</span>
+                  <span className="player-name">{p.name}</span>
+                  {p.is_host && <span className="badge badge-primary">host</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Start game — host only */}
+        {isHost && (
+          <button
+            className="btn btn-accent btn-full btn-lg"
+            onClick={startGame}
+            disabled={!room || room.players.length < 2}
+            style={{ marginTop: 'var(--space-sm)' }}
+          >
+            {!room || room.players.length < 2
+              ? 'Waiting for players...'
+              : '🚀 Start game'}
+          </button>
+        )}
+
+        {/* Waiting message — non-host */}
+        {joined && !isHost && room && room.status === 'waiting' && (
+          <div className="card" style={{ textAlign: 'center', marginTop: 'var(--space-sm)' }}>
+            <p style={{ fontSize: '0.9rem' }}>Waiting for the host to start the game...</p>
+          </div>
+        )}
+
+      </div>
+    </div>
   )
 }
