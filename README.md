@@ -11,6 +11,7 @@ Real-time social games for groups. Create a room, share the QR with your friends
 - [System Architecture](#system-architecture)
 - [Repository Structure](#repository-structure)
 - [How to Run Locally](#how-to-run-locally)
+- [Makefile Reference](#makefile-reference)
 - [How to Run Tests](#how-to-run-tests)
 - [Game Flow](#game-flow)
 - [WebSocket Events](#websocket-events)
@@ -41,6 +42,7 @@ No user accounts needed. Each player enters with their name and emoji. Anonymous
 |---|---|---|
 | **Frontend** | Next.js 14 + TypeScript | App Router, SSR for fast mobile loading, shared types with backend |
 | **Backend** | Python 3.11 + FastAPI | Native async, Pydantic for validation, familiar ecosystem |
+| **Dependency management** | Poetry | Lock file for reproducible installs, clean dev/prod dependency groups |
 | **WebSockets** | python-socketio + socket.io-client | Auto-reconnect, rooms, broadcast. Standard for real-time games |
 | **Real-time State** | Redis | Ephemeral state for active rooms, Pub/Sub for scaling to multiple instances |
 | **Database** | PostgreSQL | History persistence, global leaderboards (future phase) |
@@ -159,10 +161,12 @@ dynamizer/
 │       │   ├── test_times_up.py      # Tests for the Time's Up engine
 │       │   └── test_room_service.py  # Tests for the room service
 │       ├── Dockerfile
-│       ├── pyproject.toml
+│       ├── pyproject.toml            # Dependencies managed by Poetry
+│       ├── poetry.lock               # Pinned dependency versions
 │       └── .env.example
 │
 ├── infra/                            # Infrastructure (AWS CDK — future phase)
+├── Makefile                          # Developer shortcuts (install, dev, test, lint...)
 ├── docker-compose.yml                # Postgres + Redis for local development
 └── .gitignore
 ```
@@ -176,6 +180,7 @@ dynamizer/
 - **Docker** and **Docker Compose** installed
 - **Python 3.11+**
 - **Node.js 18+** and **npm**
+- **Poetry 2.x** — `pip install poetry`
 
 ### 1. Clone the repository
 
@@ -184,120 +189,80 @@ git clone https://github.com/javisanxe/dynamizer.git
 cd dynamizer
 ```
 
-### 2. Start Postgres and Redis
+### 2. Install all dependencies
 
 ```bash
-docker-compose up -d
+make install
+```
+
+This creates the Python virtual environment via Poetry, installs backend and frontend dependencies, and copies `.env` files from their examples.
+
+### 3. Start Postgres and Redis
+
+```bash
+make up
 ```
 
 This starts:
 - PostgreSQL on `localhost:5432` (user: `dynamizer`, password: `dynamizer`, db: `dynamizer`)
 - Redis on `localhost:6379`
 
-Verify they are ready:
+### 4. Start the development servers
+
+In separate terminals:
 
 ```bash
-docker-compose ps
+make dev-api   # backend  → http://localhost:8000
+make dev-web   # frontend → http://localhost:3000
 ```
 
-### 3. Start the backend (FastAPI)
+Or both at once:
 
 ```bash
-cd apps/api
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate      # Linux/Mac
-# .venv\Scripts\activate       # Windows
-
-# Install dependencies
-pip install -e ".[dev]"
-
-# Copy environment variables
-cp .env.example .env
-
-# Start the server
-uvicorn app.main:asgi_app --reload --host 0.0.0.0 --port 8000
+make dev
 ```
 
-The backend will be available at:
-- REST API: http://localhost:8000
+Both servers support hot-reload — changes are reflected immediately without restarting.
+
+The backend is also available at:
 - Interactive docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-### 4. Start the frontend (Next.js)
+---
 
-In another terminal:
+## Makefile Reference
 
-```bash
-cd apps/web
-
-# Install dependencies
-npm install
-
-# Copy environment variables
-cp .env.example .env.local
-
-# Start in development mode
-npm run dev
 ```
+make install        # install all dependencies (backend + frontend)
+make up / down      # start / stop Docker Compose (Postgres + Redis)
+make logs           # follow Docker Compose logs
 
-The frontend will be available at http://localhost:3000
+make dev            # start backend + frontend in parallel
+make dev-api        # start FastAPI only (port 8000)
+make dev-web        # start Next.js only (port 3000)
+
+make test           # run all tests
+make test-api       # run backend tests (pytest)
+make test-web       # run frontend tests (Jest)
+make test-cov       # run all tests with coverage report
+
+make lint           # run ruff + ESLint
+make format         # format backend code with ruff
+make clean          # remove build artifacts and caches
+
+make help           # list all available targets
+```
 
 ---
 
 ## How to Run Tests
 
-### Backend tests
-
 ```bash
-cd apps/api
-source .venv/bin/activate
-
-# All tests
-pytest
-
-# With coverage
-pytest --cov=app --cov-report=term-missing
-
-# A specific module
-pytest tests/test_times_up.py -v
-
-# A specific test
-pytest tests/test_times_up.py::TestTimesUpEngine::test_card_guessed_adds_point -v
+make test           # all tests (backend + frontend)
+make test-api       # backend only (pytest)
+make test-web       # frontend only (Jest)
+make test-cov       # all tests with coverage report
 ```
-
-What each test file covers:
-
-| File | What it tests |
-|---|---|
-| `test_health.py` | `/health` endpoint |
-| `test_rooms.py` | `Room`/`Player` models and room REST endpoints |
-| `test_times_up.py` | Complete Time's Up engine: initialization, turns, cards, phases, leaderboard |
-| `test_room_service.py` | Room service with mocked Redis |
-
-### Frontend tests
-
-```bash
-cd apps/web
-
-# All tests
-npm test
-
-# Watch mode (re-runs on each change)
-npm run test:watch
-
-# With coverage
-npm test -- --coverage
-```
-
-What each test file covers:
-
-| File | What it tests |
-|---|---|
-| `hooks/__tests__/useSocket.test.ts` | WebSocket connection hook |
-| `hooks/__tests__/useGame.test.ts` | Game state hook |
-| `app/__tests__/page.test.tsx` | Home page: rendering and validations |
 
 ---
 
