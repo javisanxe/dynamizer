@@ -12,17 +12,17 @@ jest.mock('../useSocket', () => ({
 }))
 
 describe('useGame', () => {
-  it('inicia con sala null y sin error', () => {
-    const { result } = renderHook(() => useGame('ABC123', 'jugador-1'))
-    expect(result.current.sala).toBeNull()
+  it('starts with null room and no error', () => {
+    const { result } = renderHook(() => useGame('ABC123', 'player-1'))
+    expect(result.current.room).toBeNull()
     expect(result.current.error).toBeNull()
   })
 
-  it('expone funciones de juego', () => {
-    const { result } = renderHook(() => useGame('ABC123', 'jugador-1'))
-    expect(typeof result.current.unirse).toBe('function')
-    expect(typeof result.current.iniciarJuego).toBe('function')
-    expect(typeof result.current.cartaAdivinada).toBe('function')
-    expect(typeof result.current.cartaPasada).toBe('function')
+  it('exposes game functions', () => {
+    const { result } = renderHook(() => useGame('ABC123', 'player-1'))
+    expect(typeof result.current.join).toBe('function')
+    expect(typeof result.current.startGame).toBe('function')
+    expect(typeof result.current.cardGuessed).toBe('function')
+    expect(typeof result.current.cardPassed).toBe('function')
   })
 })

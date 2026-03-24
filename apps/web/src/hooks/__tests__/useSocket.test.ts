@@ -20,12 +20,12 @@ jest.mock('socket.io-client', () => {
 })
 
 describe('useSocket', () => {
-  it('inicia con estado disconnected', () => {
+  it('starts with disconnected status', () => {
     const { result } = renderHook(() => useSocket())
     expect(result.current.status).toBe('disconnected')
   })
 
-  it('expone funciones emit, on y off', () => {
+  it('exposes emit, on and off functions', () => {
     const { result } = renderHook(() => useSocket())
     expect(typeof result.current.emit).toBe('function')
     expect(typeof result.current.on).toBe('function')

@@ -9,7 +9,7 @@ jest.mock('next/navigation', () => ({
 const mockPush = jest.fn()
 ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
 
-// Mock fetch global
+// Mock global fetch
 global.fetch = jest.fn()
 
 describe('HomePage', () => {
@@ -17,27 +17,27 @@ describe('HomePage', () => {
     jest.clearAllMocks()
   })
 
-  it('renderiza el título Dynamizer', () => {
+  it('renders the Dynamizer title', () => {
     render(<HomePage />)
     expect(screen.getByText('Dynamizer')).toBeInTheDocument()
   })
 
-  it('renderiza el input de nombre', () => {
+  it('renders the name input', () => {
     render(<HomePage />)
-    expect(screen.getByPlaceholderText('Tu nombre')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Your name')).toBeInTheDocument()
   })
 
-  it('muestra error si se intenta crear sala sin nombre', () => {
+  it('shows error when trying to create a room without a name', () => {
     render(<HomePage />)
-    fireEvent.click(screen.getByText('Crear sala'))
-    expect(screen.getByText('Introduce tu nombre')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }))
+    expect(screen.getByText('Enter your name')).toBeInTheDocument()
   })
 
-  it('muestra error si se intenta unir sin código de sala', () => {
+  it('shows error when trying to join without a room code', () => {
     render(<HomePage />)
-    const nombreInput = screen.getByPlaceholderText('Tu nombre')
-    fireEvent.change(nombreInput, { target: { value: 'Ana' } })
-    fireEvent.click(screen.getByText('Unirse'))
-    expect(screen.getByText('Introduce el código de sala')).toBeInTheDocument()
+    const nameInput = screen.getByPlaceholderText('Your name')
+    fireEvent.change(nameInput, { target: { value: 'Ana' } })
+    fireEvent.click(screen.getByText('Join'))
+    expect(screen.getByText('Enter the room code')).toBeInTheDocument()
   })
 })
