@@ -224,6 +224,19 @@ p {
   color: var(--color-text);
 }
 
+.btn-dev {
+  background: transparent;
+  border: 1px dashed var(--color-text-faint);
+  color: var(--color-text-faint);
+  font-size: 0.85rem;
+  padding: 0.6rem 1rem;
+}
+
+.btn-dev:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .btn-full {
   width: 100%;
 }

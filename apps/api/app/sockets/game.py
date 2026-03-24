@@ -27,8 +27,8 @@ def register_game_events(sio: socketio.AsyncServer):
             await sio.emit("error", {"message": "Only the host can start the game"}, to=sid)
             return
 
-        if len(room.players) < 2:
-            await sio.emit("error", {"message": "At least 2 players are required"}, to=sid)
+        if len(room.players) < 1:
+            await sio.emit("error", {"message": "At least 1 player is required"}, to=sid)
             return
 
         room.status = RoomStatus.PLAYING

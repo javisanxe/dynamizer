@@ -1,11 +1,17 @@
 import socketio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from importlib.metadata import version, PackageNotFoundError
 
 from app.config import settings
 from app.routers import rooms
 from app.sockets.room import register_room_events
 from app.sockets.game import register_game_events
+
+try:
+    __version__ = version("dynamizer-api")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 # --- Socket.io server (async mode) ---
 sio = socketio.AsyncServer(
@@ -19,7 +25,7 @@ sio = socketio.AsyncServer(
 app = FastAPI(
     title="Dynamizer API",
     description="Real-time social games backend",
-    version="0.1.0",
+    version=__version__,
 )
 
 app.add_middleware(
@@ -43,4 +49,4 @@ asgi_app = socketio.ASGIApp(sio, other_asgi_app=app)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": __version__}

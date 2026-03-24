@@ -3,20 +3,20 @@
 import { useState, useRef, useEffect } from 'react'
 
 const EMOJIS = [
-  // Caras / expresiones
+  // Faces / expressions
   '😀','😂','😍','🥰','😎','🤩','😜','🤪','😇','🥳',
   '😤','😈','👻','💀','🤖','👽','🐱','🐶','🦊','🐼',
-  // Gestos / personas
+  // Gestures / people
   '👑','🧙','🧝','🧛','🧟','🦸','🦹','🧜','🧚','🤠',
   '🕵️','👮','🧑‍🚀','🧑‍🎤','🧑‍🍳','🧑‍🎨','🧑‍💻','🧑‍🔬','🧑‍🏫','🧑‍🏋️',
-  // Animales
+  // Animals
   '🦁','🐯','🐻','🐸','🐧','🦅','🦄','🐉','🦋','🐙',
-  // Objetos / símbolos
+  // Objects / symbols
   '🎮','🎲','🃏','🎯','🏆','🥇','⚡','🔥','💎','🌟',
   '🎸','🎺','🎻','🥁','🎹','🎤','🎭','🎨','🎬','🎪',
-  // Comida / bebida
+  // Food / drinks
   '🍕','🍔','🌮','🍣','🍜','🍩','🍦','🧁','🍺','🧃',
-  // Naturaleza
+  // Nature
   '🌈','🌊','🌋','🌸','🍀','🍄','⭐','🌙','☀️','❄️',
 ]
 
@@ -29,7 +29,7 @@ export default function EmojiPicker({ value, onChange }: EmojiPickerProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Cerrar al hacer clic fuera
+  // Close when clicking outside
   useEffect(() => {
     if (!open) return
     function handleClick(e: MouseEvent) {
