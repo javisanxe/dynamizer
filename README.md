@@ -115,6 +115,7 @@ dynamizer/
 │   ├── web/                          # Frontend — Next.js + TypeScript
 │   │   ├── src/
 │   │   │   ├── app/                  # Next.js App Router
+│   │   │   │   ├── globals.css       # Design system (tokens, utility classes)
 │   │   │   │   ├── page.tsx          # Home: create room / join
 │   │   │   │   ├── __tests__/        # Page tests
 │   │   │   │   └── room/
@@ -122,6 +123,8 @@ dynamizer/
 │   │   │   │           ├── page.tsx          # Room lobby + QR
 │   │   │   │           └── play/
 │   │   │   │               └── page.tsx      # Active game view
+│   │   │   ├── components/
+│   │   │   │   └── EmojiPicker.tsx   # Dropdown emoji selector
 │   │   │   ├── hooks/
 │   │   │   │   ├── useSocket.ts      # WebSocket connection hook
 │   │   │   │   ├── useGame.ts        # Game state hook
@@ -282,7 +285,7 @@ make test-cov       # all tests with coverage report
    Everyone receives ← room:updated { ...room }
 
 3. HOST starts the game
-   (button visible only to the host when there are ≥2 players)
+    (button visible only to the host when there are ≥1 players)
    Emits → game:start { room_id, player_id }
    Everyone receives ← game:started { ...game_state }
    Everyone redirects to /room/{id}/play

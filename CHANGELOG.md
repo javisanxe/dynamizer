@@ -15,6 +15,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - Minimum players required to start a game lowered from 2 to 1 (backend + frontend)
+- API version no longer hardcoded in `main.py` — read dynamically from `pyproject.toml` via `importlib.metadata`
 
 ---
 
