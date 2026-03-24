@@ -2,11 +2,7 @@
 
 API_DIR     := apps/api
 WEB_DIR     := apps/web
-PYTHON      := $(API_DIR)/.venv/bin/python
-PIP         := $(API_DIR)/.venv/bin/pip
-PYTEST      := $(API_DIR)/.venv/bin/pytest
-RUFF        := $(API_DIR)/.venv/bin/ruff
-UVICORN     := $(API_DIR)/.venv/bin/uvicorn
+POETRY      := cd $(API_DIR) && poetry
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
@@ -36,10 +32,8 @@ logs: ## Show Docker Compose logs
 install: install-api install-web ## Install all dependencies (backend + frontend)
 
 .PHONY: install-api
-install-api: ## Install backend dependencies (creates .venv if needed)
-	python3 -m venv $(API_DIR)/.venv
-	$(PIP) install --upgrade pip
-	$(PIP) install -e "$(API_DIR)/[dev]"
+install-api: ## Install backend dependencies via Poetry (creates .venv if needed)
+	$(POETRY) install --with dev
 	@if [ ! -f $(API_DIR)/.env ]; then cp $(API_DIR)/.env.example $(API_DIR)/.env; echo "Created $(API_DIR)/.env from .env.example"; fi
 
 .PHONY: install-web
@@ -55,7 +49,7 @@ dev: ## Start backend and frontend in parallel
 
 .PHONY: dev-api
 dev-api: ## Start FastAPI server with hot-reload
-	$(UVICORN) app.main:asgi_app --reload --host 0.0.0.0 --port 8000 --app-dir $(API_DIR)
+	$(POETRY) run uvicorn app.main:asgi_app --reload --host 0.0.0.0 --port 8000
 
 .PHONY: dev-web
 dev-web: ## Start Next.js dev server
@@ -68,7 +62,7 @@ test: test-api test-web ## Run all tests (backend + frontend)
 
 .PHONY: test-api
 test-api: ## Run backend tests (pytest)
-	$(PYTEST) $(API_DIR)/tests -v
+	$(POETRY) run pytest tests -v
 
 .PHONY: test-web
 test-web: ## Run frontend tests (Jest)
@@ -79,7 +73,7 @@ test-cov: test-cov-api test-cov-web ## Run all tests with coverage
 
 .PHONY: test-cov-api
 test-cov-api: ## Run backend tests with coverage report
-	$(PYTEST) $(API_DIR)/tests --cov=$(API_DIR)/app --cov-report=term-missing
+	$(POETRY) run pytest tests --cov=app --cov-report=term-missing
 
 .PHONY: test-cov-web
 test-cov-web: ## Run frontend tests with coverage report
@@ -92,7 +86,7 @@ lint: lint-api lint-web ## Run linters on backend and frontend
 
 .PHONY: lint-api
 lint-api: ## Run ruff linter on backend
-	$(RUFF) check $(API_DIR)/app $(API_DIR)/tests
+	$(POETRY) run ruff check app tests
 
 .PHONY: lint-web
 lint-web: ## Run ESLint on frontend
@@ -100,11 +94,11 @@ lint-web: ## Run ESLint on frontend
 
 .PHONY: format
 format: ## Format backend code with ruff
-	$(RUFF) format $(API_DIR)/app $(API_DIR)/tests
+	$(POETRY) run ruff format app tests
 
 .PHONY: format-check
 format-check: ## Check backend formatting without applying changes
-	$(RUFF) format --check $(API_DIR)/app $(API_DIR)/tests
+	$(POETRY) run ruff format --check app tests
 
 # ─── Clean ────────────────────────────────────────────────────────────────────
 
