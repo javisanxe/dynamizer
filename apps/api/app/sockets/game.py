@@ -34,6 +34,9 @@ def register_game_events(sio: socketio.AsyncServer):
         room.status = RoomStatus.PLAYING
         await room_service.save_room(room)
 
+        # Fix 4: broadcast room:updated so all clients see status='playing' and redirect
+        await sio.emit("room:updated", room.model_dump(), room=room_id)
+
         game_state = await game_service.start_game(room)
         await sio.emit("game:started", game_state.model_dump(), room=room_id)
 

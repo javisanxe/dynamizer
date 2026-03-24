@@ -22,27 +22,42 @@ export default function LobbyPage() {
   const roomId = params.id as string
   const isTestPlayer = searchParams.get('testplayer') === '1'
 
-  const [playerId, setPlayerId] = useState<string>('')
+  // Fix 2: read playerId synchronously so isHost is correct on first render
+  const [playerId, setPlayerId] = useState<string>(
+    () => typeof window !== 'undefined' ? localStorage.getItem('player_id') ?? '' : ''
+  )
   const [name, setName] = useState<string>('')
   const [emoji, setEmoji] = useState<string>('🎮')
   const [joined, setJoined] = useState(false)
+  const hostJoinedRef = useRef(false)
   const autoJoinedRef = useRef(false)
 
   const { room, error, socketStatus, join, startGame } = useGame(roomId, playerId)
 
-  // Normal flow: restore player from localStorage
+  // Normal flow: restore name/emoji from localStorage (playerId already set synchronously)
   useEffect(() => {
     if (isTestPlayer) return
-    const storedId = localStorage.getItem('player_id')
+    const storedId = localStorage.getItem('player_id') ?? ''
     const storedName = localStorage.getItem('name') ?? ''
     const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
-    if (storedId) {
-      setPlayerId(storedId)
-      setJoined(true)
-    }
+    if (storedId) setJoined(true)
     setName(storedName)
     setEmoji(storedEmoji)
   }, [isTestPlayer])
+
+  // Fix 1: host must emit room:join so the socket enters the Socket.IO room.
+  // Non-host players do this via handleJoin; the host bypassed it by using REST.
+  useEffect(() => {
+    if (isTestPlayer) return
+    if (hostJoinedRef.current) return
+    if (socketStatus !== 'connected') return
+    const storedId = localStorage.getItem('player_id')
+    const storedName = localStorage.getItem('name') ?? ''
+    const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
+    if (!storedId) return
+    hostJoinedRef.current = true
+    join(storedName, storedEmoji, storedId)
+  }, [socketStatus, isTestPlayer, join])
 
   // Test player flow: auto-fill and auto-join once socket is connected
   useEffect(() => {

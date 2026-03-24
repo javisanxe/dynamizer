@@ -21,8 +21,8 @@ export function useGame(roomId: string, playerId: string) {
     }
   }, [status, on, off])
 
-  function join(name: string, emoji: string) {
-    emit('room:join', { room_id: roomId, name, emoji })
+  function join(name: string, emoji: string, existingPlayerId?: string) {
+    emit('room:join', { room_id: roomId, name, emoji, player_id: existingPlayerId ?? null })
   }
 
   function startGame() {

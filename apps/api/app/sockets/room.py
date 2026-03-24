@@ -18,11 +18,15 @@ def register_room_events(sio: socketio.AsyncServer):
     async def join_room(sid, data):
         """
         Event: room:join
-        Payload: { room_id, name, emoji }
+        Payload: { room_id, name, emoji, player_id? }
+        If player_id is provided and already exists in the room (e.g. the host
+        rejoining after a page navigation), just subscribe the socket to the
+        Socket.IO room without creating a duplicate player.
         """
         room_id = data.get("room_id")
         name = data.get("name")
         emoji = data.get("emoji", "🎮")
+        player_id = data.get("player_id")
 
         room = await service.get_room(room_id)
         if not room:
@@ -33,6 +37,15 @@ def register_room_events(sio: socketio.AsyncServer):
             await sio.emit("error", {"message": "The game has already started"}, to=sid)
             return
 
+        # Rejoin: player already exists, just subscribe the socket to the room
+        existing = room.get_player_by_id(player_id) if player_id else None
+        if existing:
+            await sio.enter_room(sid, room_id)
+            await sio.emit("room:updated", room.model_dump(), room=room_id)
+            await sio.emit("room:joined", {"player_id": existing.id}, to=sid)
+            return
+
+        # New join
         if room.is_full():
             await sio.emit("error", {"message": "The room is full"}, to=sid)
             return

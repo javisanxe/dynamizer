@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -32,13 +32,14 @@ export function useSocket() {
     socketRef.current?.emit(event, payload)
   }
 
-  function on<T>(event: string, handler: (data: T) => void) {
+  // Fix 3: stable references so useGame's useEffect doesn't re-register listeners on every render
+  const on = useCallback(<T,>(event: string, handler: (data: T) => void) => {
     socketRef.current?.on(event, handler)
-  }
+  }, [])
 
-  function off(event: string) {
+  const off = useCallback((event: string) => {
     socketRef.current?.off(event)
-  }
+  }, [])
 
   return { socket: socketRef.current, status, emit, on, off }
 }
