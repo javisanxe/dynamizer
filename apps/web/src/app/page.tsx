@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import EmojiPicker from '@/components/EmojiPicker'
 
 export default function HomePage() {
   const router = useRouter()
@@ -77,13 +78,7 @@ export default function HomePage() {
               maxLength={30}
               onKeyDown={(e) => e.key === 'Enter' && createRoom()}
             />
-            <input
-              className="input input-emoji"
-              type="text"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              maxLength={2}
-            />
+            <EmojiPicker value={emoji} onChange={setEmoji} />
           </div>
         </div>
 
