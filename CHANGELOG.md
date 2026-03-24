@@ -12,10 +12,18 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `EmojiPicker` component: dropdown grid with 90 emojis, replaces free-text emoji input on homepage and lobby join form
 - Dev-only "🧪 Open test player" button in lobby — opens a second tab that auto-joins with a random name/emoji
 - `?testplayer=1` query param: auto-fill and auto-join logic for the second test tab
+- `.opencode/skills/pr-review/SKILL.md`: OpenCode skill for automated PR review of this repo
 
 ### Changed
 - Minimum players required to start a game lowered from 2 to 1 (backend + frontend)
 - API version no longer hardcoded in `main.py` — read dynamically from `pyproject.toml` via `importlib.metadata`
+
+### Fixed
+- Host was not receiving Socket.IO broadcasts because it never emitted `room:join` after creating the room via REST — lobby now emits `room:join` on mount for the host too
+- `isHost` was always `false` on first render because `playerId` was read from `localStorage` inside a `useEffect`; it is now read synchronously at render time
+- Socket listeners were registered multiple times per event due to unstable `on`/`off` references in `useSocket`; fixed with `useCallback`
+- Backend only emitted `game:started` when starting a game but the frontend was waiting for `room:updated` to redirect; backend now emits both events
+- Host player was duplicated in the player list because `room:join` always inserted a new `Player` record; backend now does a rejoin if `player_id` is provided and the player already exists
 
 ---
 
