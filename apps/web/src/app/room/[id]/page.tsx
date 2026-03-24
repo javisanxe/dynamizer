@@ -1,22 +1,38 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, useRef } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import { useGame } from '@/hooks/useGame'
+import EmojiPicker from '@/components/EmojiPicker'
+
+const TEST_NAMES = ['Player 2', 'Alex', 'Sam', 'Jordan', 'Casey', 'Morgan', 'Riley', 'Taylor']
+const TEST_EMOJIS = ['🦊', '🐼', '🦁', '🐸', '🤖', '👽', '🧙', '🥳', '😎', '🤠']
+
+function randomItem<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+const isDev = process.env.NODE_ENV === 'development'
 
 export default function LobbyPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const roomId = params.id as string
+  const isTestPlayer = searchParams.get('testplayer') === '1'
+
   const [playerId, setPlayerId] = useState<string>('')
   const [name, setName] = useState<string>('')
   const [emoji, setEmoji] = useState<string>('🎮')
   const [joined, setJoined] = useState(false)
+  const autoJoinedRef = useRef(false)
 
   const { room, error, socketStatus, join, startGame } = useGame(roomId, playerId)
 
+  // Normal flow: restore player from localStorage
   useEffect(() => {
+    if (isTestPlayer) return
     const storedId = localStorage.getItem('player_id')
     const storedName = localStorage.getItem('name') ?? ''
     const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
@@ -26,7 +42,20 @@ export default function LobbyPage() {
     }
     setName(storedName)
     setEmoji(storedEmoji)
-  }, [])
+  }, [isTestPlayer])
+
+  // Test player flow: auto-fill and auto-join once socket is connected
+  useEffect(() => {
+    if (!isTestPlayer || autoJoinedRef.current) return
+    if (socketStatus !== 'connected') return
+    autoJoinedRef.current = true
+    const testName = randomItem(TEST_NAMES)
+    const testEmoji = randomItem(TEST_EMOJIS)
+    setName(testName)
+    setEmoji(testEmoji)
+    join(testName, testEmoji)
+    setJoined(true)
+  }, [isTestPlayer, socketStatus, join])
 
   useEffect(() => {
     if (room?.status === 'playing') {
@@ -37,6 +66,10 @@ export default function LobbyPage() {
   function handleJoin() {
     join(name, emoji)
     setJoined(true)
+  }
+
+  function openTestPlayer() {
+    window.open(`/room/${roomId}?testplayer=1`, '_blank')
   }
 
   const roomUrl = typeof window !== 'undefined' ? `${window.location.origin}/room/${roomId}` : ''
@@ -78,12 +111,7 @@ export default function LobbyPage() {
                 placeholder="Your name"
                 onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               />
-              <input
-                className="input input-emoji"
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                maxLength={2}
-              />
+              <EmojiPicker value={emoji} onChange={setEmoji} />
             </div>
             <button className="btn btn-primary btn-full" onClick={handleJoin}>
               Join →
@@ -133,12 +161,10 @@ export default function LobbyPage() {
           <button
             className="btn btn-accent btn-full btn-lg"
             onClick={startGame}
-            disabled={!room || room.players.length < 2}
+            disabled={!room || room.players.length < 1}
             style={{ marginTop: 'var(--space-sm)' }}
           >
-            {!room || room.players.length < 2
-              ? 'Waiting for players...'
-              : '🚀 Start game'}
+            🚀 Start game
           </button>
         )}
 
@@ -147,6 +173,17 @@ export default function LobbyPage() {
           <div className="card" style={{ textAlign: 'center', marginTop: 'var(--space-sm)' }}>
             <p style={{ fontSize: '0.9rem' }}>Waiting for the host to start the game...</p>
           </div>
+        )}
+
+        {/* Dev tool — open a second test player tab */}
+        {isDev && joined && (
+          <button
+            className="btn btn-dev btn-full"
+            onClick={openTestPlayer}
+            style={{ marginTop: 'var(--space-md)' }}
+          >
+            🧪 Open test player
+          </button>
         )}
 
       </div>
