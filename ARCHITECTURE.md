@@ -9,13 +9,11 @@ This document is the reference for anyone working on Dynamizer for the first tim
 - [How the system works (big picture)](#how-the-system-works-big-picture)
 - [Backend — `apps/api/`](#backend--appsapi)
   - [Key concepts](#key-concepts-backend)
-  - [Folder map](#folder-map-backend)
-  - [File-by-file reference](#file-by-file-reference)
+  - [Folder map and responsibilities](#folder-map-and-responsibilities)
   - [How to add a new game](#how-to-add-a-new-game)
 - [Frontend — `apps/web/`](#frontend--appsweb)
   - [Key concepts](#key-concepts-frontend)
-  - [Folder map](#folder-map-frontend)
-  - [File-by-file reference](#file-by-file-reference-1)
+  - [Folder map and responsibilities](#folder-map-and-responsibilities-1)
   - [How a move travels through the system](#how-a-move-travels-through-the-system)
 - [Tests](#tests)
 - [Logging and debugging](#logging-and-debugging)
@@ -52,47 +50,31 @@ The **frontend never holds the authoritative state**. Every action (join, move, 
 
 #### FastAPI and REST
 
-FastAPI is a Python web framework for building HTTP APIs. You define an endpoint like this:
+FastAPI is a Python web framework for building HTTP APIs. You define a function and decorate it with the HTTP method and path — FastAPI handles the rest (parsing, validation, serialisation).
 
-```python
-@router.get("/{room_id}")
-async def get_room(room_id: str):
-    room = await service.get_room(room_id)
-    return room
-```
-
-REST endpoints in this project are only used for operations that happen **before** entering a room: creating a room (`POST /api/rooms/`) and reading its initial data (`GET /api/rooms/{id}`). Everything that happens during a game goes through WebSockets instead.
+REST endpoints in this project are only used for operations that happen **before** entering a room: creating a room and reading its initial data. Everything that happens during a game goes through WebSockets instead, because REST is request/response and cannot push updates to multiple clients simultaneously.
 
 #### Socket.IO and WebSockets
 
 HTTP works as request → response: the client asks, the server answers, the connection closes. That model does not work for a real-time game where the server needs to push updates to everyone in the room without them asking.
 
-Socket.IO is a library that keeps a persistent bidirectional connection open between each client and the server. When player A makes a move, the backend can immediately push the updated state to players B, C, and D without them sending any request.
+Socket.IO keeps a persistent bidirectional connection open between each client and the server. When player A makes a move, the backend immediately pushes the updated state to players B, C, and D without them sending any request.
 
 Events flow both ways:
 
 ```
-client → server:   emit("game:make_move", { room_id, player_id, cell_index })
-server → clients:  emit("game:updated",   { ...game_state })   (broadcast to whole room)
-server → one client: emit("error", { message })                (only to the sender)
+client → server:     emit("game:make_move", { room_id, player_id, cell_index })
+server → all room:   emit("game:updated",   { ...game_state })
+server → one client: emit("error",          { message })
 ```
 
-In this project, each room has its own Socket.IO **room** (a channel). When the backend wants to update everyone in a game, it broadcasts to that channel, not to every connected client in the world.
+In this project, each room has its own Socket.IO **channel**. When the backend wants to update everyone in a game, it broadcasts to that channel only — not to every connected client in the world.
 
 #### Pydantic models
 
-Pydantic is a library that defines data shapes using Python classes. It validates that incoming data has the right types and provides easy JSON serialisation.
+Pydantic is a library that defines data shapes as Python classes and validates that data matches those shapes automatically. When the backend reads a room from Redis (stored as a JSON string), Pydantic parses it into a fully-typed Python object. When saving, it converts it back to a JSON string. No manual parsing anywhere.
 
-```python
-class Player(BaseModel):
-    id: str = Field(default_factory=lambda: ...)
-    name: str
-    score: int = 0
-```
-
-When the backend reads a room from Redis (stored as a JSON string), it calls `Room.model_validate_json(data)` and gets a fully-typed Python object back. When saving, `room.model_dump_json()` converts it back to a string. No manual JSON parsing anywhere.
-
-The models in `app/models/` are the **single source of truth** for what a room or game state looks like. If you add a field here, it's automatically included when saving to Redis and when sending to the frontend.
+The models in `app/models/` are the **single source of truth** for what a room or game state looks like. If you add a field to a model, it is automatically included when saving to Redis and when sending payloads to the frontend.
 
 #### Redis
 
@@ -105,11 +87,11 @@ In this project it stores two types of keys:
 | `room:{id}` | JSON of a `Room` object | 6 hours |
 | `game_state:{id}` | JSON of a `GameState` object | 6 hours |
 
-The 6-hour TTL means abandoned rooms are cleaned up automatically. You can inspect the current data with `make redis` → `KEYS *`.
+The 6-hour TTL means abandoned rooms are cleaned up automatically. You can inspect the current data live with `make redis` → `KEYS *`.
 
 ---
 
-### Folder map (backend)
+### Folder map and responsibilities (backend)
 
 ```
 apps/api/
@@ -135,167 +117,28 @@ routers/  →  services/  →  models/
 games/    →  models/    (no Redis, no socket, no HTTP)
 ```
 
-A socket handler never writes to Redis directly — it calls a service. A game engine never touches Redis — the service does that after calling the engine. This separation means you can test the game logic without mocking anything.
+A socket handler never writes to Redis directly — it calls a service. A game engine never touches Redis — the service does that after calling the engine. This separation means you can test the entire game logic without mocking anything.
 
----
+**`models/`** — Pure data containers. Add a field here and it flows everywhere automatically (Redis, socket payloads, HTTP responses). Never put I/O or business logic here.
 
-### File-by-file reference
+**`routers/`** — HTTP endpoints. Validate input, call a service, return a response. Nothing else.
 
-#### `app/main.py`
+**`services/`** — The business logic layer. The only place allowed to read/write Redis. Called by both routers and socket handlers.
 
-The startup file. It:
-1. Calls `setup_logging()` (must happen before anything else logs)
-2. Creates the FastAPI app and adds middleware (CORS, HTTP logging)
-3. Creates the Socket.IO server
-4. Registers all socket event handlers
-5. Wraps everything into a single ASGI app that uvicorn runs
+**`sockets/`** — WebSocket event handlers. Receive an event, call services, broadcast results. All handlers are wrapped in `try/except` so exceptions are logged instead of being silently swallowed by python-socketio.
 
-**You touch this file when**: adding a new router, changing CORS settings, or adding a new middleware. You do not put business logic here.
-
----
-
-#### `app/config.py`
-
-Reads environment variables (from `.env` in local dev) and exposes them as a typed `settings` object. Import it anywhere with:
-
-```python
-from app.config import settings
-settings.redis_url   # → "redis://localhost:6379"
-settings.app_env     # → "development"
-```
-
-**You touch this file when**: adding a new environment variable. Define it here, add it to `.env.example`, and read it via `settings.` everywhere else — never `os.environ.get()` directly.
-
----
-
-#### `app/models/room.py`
-
-Defines `Player`, `RoomConfig`, `Room`, and the `RoomStatus` enum. These are pure data containers — no methods that make HTTP calls or touch Redis.
-
-The two helpers on `Room` (`get_player_by_id`, `is_full`) are fine because they only operate on the object's own data.
-
-**You touch this file when**: adding a field to a player or room (e.g. an avatar URL, a `ready` flag). Remember: any new field will automatically flow to Redis and to the frontend via `model_dump()`.
-
----
-
-#### `app/models/game.py`
-
-Defines `GameState` — a single model that holds the state of any game. It has fields for both Times Up and Tic-Tac-Toe on the same model. This is a pragmatic choice for an early-stage project: one model, easy to serialise, no complex inheritance.
-
-The `game` field (e.g. `"tic_tac_toe"`) is the key the services use to dispatch to the right engine.
-
-**You touch this file when**: a new game needs new state fields that don't fit in the existing model, or you add a new game type.
-
----
-
-#### `app/routers/rooms.py`
-
-Two HTTP endpoints: create room and get room. Each one validates input, delegates to `RoomService`, and returns the result. No game logic here.
-
-**You touch this file when**: adding a new REST endpoint (e.g. `DELETE /api/rooms/{id}`).
-
----
-
-#### `app/services/room_service.py`
-
-The only place in the codebase that reads and writes `room:{id}` keys in Redis. Exposes `save_room`, `get_room`, `delete_room`, `room_exists`.
-
-**You touch this file when**: changing how rooms are persisted, the TTL, or adding a new query (e.g. `list_rooms`).
-
----
-
-#### `app/services/game_service.py`
-
-Orchestrates game actions: picks the right engine from the `GAME_ENGINES` registry, calls it, and persists the result to Redis. Also exposes `load_state` and `save_state` for `game_state:{id}` keys.
-
-**You touch this file when**: adding a new game engine (register it in `GAME_ENGINES`), or changing game state persistence.
-
----
-
-#### `app/sockets/room.py`
-
-Handles room-related socket events: `connect`, `disconnect`, `room:join`, `room:leave`.
-
-The `room:join` handler has two paths:
-- **Reconnection**: the client sends a `player_id` that already exists in the room (e.g. page refresh). The handler reuses the existing player and resends the current state.
-- **New join**: a new `Player` is created, added to the room, and the updated room is broadcast to everyone.
-
-All handlers are wrapped in `try/except` — unhandled errors are logged with a full traceback and an `error` event is sent to the client. Without this, python-socketio silently swallows exceptions.
-
-**You touch this file when**: adding a new room-lifecycle event (e.g. `room:kick`).
-
----
-
-#### `app/sockets/game.py`
-
-Handles game-related socket events: `game:start`, `game:make_move`, `game:card_guessed`, `game:card_passed`.
-
-After a move, if `state.finished` is `True`, the handler resets the room status to `waiting` and emits `game:finished` so all clients can show the result and navigate back to the lobby.
-
-**You touch this file when**: adding a new in-game socket event, or wiring up game logic that was previously a stub (e.g. Times Up card events).
-
----
-
-#### `app/logging_config.py`
-
-Called once at startup from `main.py`. Sets up coloured output in development (`DEBUG` level) and plain output in production (`INFO` level). Silences noisy libraries (socketio, engineio, asyncio, uvicorn.access).
-
-To add a log line anywhere in the backend:
-
-```python
-import logging
-logger = logging.getLogger(__name__)
-
-logger.debug("make_move room=%s player=%s cell=%s", room_id, player_id, cell_index)
-logger.error("something broke", exc_info=True)  # exc_info=True prints the traceback
-```
-
-**You touch this file when**: adjusting log levels for specific libraries, or changing the output format.
-
----
-
-#### `app/games/`
-
-Each game is a self-contained package with an `engine.py`. The engine is a plain Python class with no dependencies on Redis, HTTP, or sockets. It receives a `Room` or `GameState`, performs pure computation, and returns a new `GameState`.
-
-**Contract every engine must implement**:
-
-```python
-class MyGameEngine:
-    def initialize(self, room: Room) -> GameState:
-        # Called once when the game starts. Returns the initial state.
-        ...
-
-    def make_move(self, state: GameState, player_id: str, ...) -> GameState:
-        # Validates and applies a move. Raises ValueError on invalid moves.
-        # Sets state.finished = True when the game ends.
-        ...
-
-    def leaderboard(self, state: GameState) -> list[dict]:
-        # Returns [{ "player_id": ..., "points": ..., "rank": ... }]
-        # sorted by rank (winner first).
-        ...
-```
-
-Because engines have no I/O, they are trivial to test — no mocks needed.
+**`games/`** — One package per game, each with an `engine.py`. Engines are pure Python classes: they receive a room or game state, compute the next state, and return it. No I/O of any kind. Because of this they are trivial to unit test — no mocks needed.
 
 ---
 
 ### How to add a new game
 
-1. Create `apps/api/app/games/my_game/engine.py` implementing the contract above
-2. Register it in `game_service.py`:
-   ```python
-   GAME_ENGINES = {
-       "times_up": TimesUpEngine,
-       "tic_tac_toe": TicTacToeEngine,
-       "my_game": MyGameEngine,   # ← add here
-   }
-   ```
-3. Add the game slug to `RoomConfig` allowed values in `models/room.py` if needed
-4. Wire up any new socket events in `sockets/game.py`
-5. Add tests in `tests/test_my_game.py`
-6. Add the UI component in `apps/web/src/components/` and branch on `room.config.game` in the play page
+1. Create `apps/api/app/games/my_game/engine.py` with an engine class that implements `initialize(room)`, `make_move(state, ...)`, and `leaderboard(state)`. Look at `tic_tac_toe/engine.py` as the reference.
+2. Register the engine in `game_service.py` by adding it to the `GAME_ENGINES` dict.
+3. Add any new state fields the game needs to `models/game.py`.
+4. Wire up new socket events in `sockets/game.py` if the game needs them.
+5. Add tests in `tests/test_my_game.py`.
+6. Add the UI component in `apps/web/src/components/` and branch on `room.config.game` in the play page.
 
 ---
 
@@ -305,186 +148,55 @@ Because engines have no I/O, they are trivial to test — no mocks needed.
 
 #### Next.js App Router and file-based routing
 
-Next.js maps folders to URL routes automatically. A file at `src/app/room/[id]/page.tsx` becomes the page at `/room/ABC01`. The `[id]` in brackets means it's a dynamic segment — Next.js passes its value as a prop to the component.
+Next.js maps the folder structure under `src/app/` to URL routes automatically. A file at `src/app/room/[id]/page.tsx` becomes the page rendered at `/room/ABC01`. The `[id]` in brackets is a dynamic segment — its value is passed as a prop to the component.
 
-You never configure routes manually. If you want a new page at `/settings`, create `src/app/settings/page.tsx`.
+You never configure routes manually. Adding a new page means creating a new `page.tsx` file in the right folder.
 
 #### React hooks
 
-A hook is a function that starts with `use` and lets a component hold state or run side effects. The two built-in hooks you'll see everywhere are:
-
-```typescript
-const [value, setValue] = useState(initialValue)   // state: triggers re-render on change
-useEffect(() => { /* runs after render */ }, [dep]) // side effect: fetch, subscribe, etc.
-```
+A hook is a function whose name starts with `use`. It lets a component hold state that persists across renders, or run side effects (network calls, subscriptions, timers) in a controlled way.
 
 In this project there are two custom hooks that encapsulate all the complex logic so pages stay simple:
 
-- `useSocket` — manages the socket.io connection
-- `useGame` — uses `useSocket` internally and manages all game state
+- `useSocket` — creates and manages the socket.io connection lifecycle.
+- `useGame` — builds on `useSocket` and manages all game state: subscribes to server events, holds `room`, `tttState`, `gameResult`, and exposes action functions like `join`, `makeMove`, `startGame`.
 
 A page component should mostly just call `useGame()`, destructure what it needs, and render. It should not manage socket events directly.
 
 #### TypeScript and why the types matter here
 
-TypeScript adds compile-time type checking to JavaScript. In this project it's especially important for socket events: a typo in an event name or the wrong payload shape would cause a silent runtime bug that's hard to track down.
+TypeScript adds compile-time type checking to JavaScript. In this project it is especially important for socket events: a typo in an event name or the wrong payload shape would cause a silent runtime bug. With typed payloads, the compiler catches it before the code runs.
 
-The types in `src/types/` mirror the Python models. When the backend changes a field name, the TypeScript compiler will tell you every place in the frontend that breaks.
+The types in `src/types/` mirror the Python models. When the backend changes a field name, the TypeScript compiler will flag every place in the frontend that breaks.
 
 ---
 
-### Folder map (frontend)
+### Folder map and responsibilities (frontend)
 
 ```
 apps/web/src/
 ├── app/              Pages. Each folder = one URL route.
+│   ├── page.tsx               /           → home (create/join room)
 │   └── room/[id]/
-│       ├── page.tsx          /room/ABC01   → lobby
-│       └── play/page.tsx     /room/ABC01/play → game
+│       ├── page.tsx           /room/ABC01       → lobby
+│       └── play/page.tsx      /room/ABC01/play  → in-game
 │
 ├── components/       Reusable UI pieces. No routing logic, no direct socket calls.
 │
-├── hooks/            Logic with state. The socket and game protocol live here.
+├── hooks/            Logic with state. The socket connection and game protocol live here.
 │
 └── types/            TypeScript interfaces. Mirror of the Python models.
 ```
 
-**The rule that matters**: components do not call `socket.emit()` directly. They receive callbacks as props (`onMove`, `onPlayAgain`) that the page or hook provides. This makes components testable in isolation — you just pass a mock function as the prop.
+**The rule that matters**: components do not call `socket.emit()` directly. They receive data and callbacks as props (`onMove`, `onPlayAgain`) that the page or hook provides. This keeps components decoupled from the network layer and makes them easy to test in isolation — you just pass a mock function as the prop and assert it was called correctly.
 
----
+**`app/`** — Pages are thin. They read identity from `localStorage` or URL params, call `useGame`, and pass state and actions down to components.
 
-### File-by-file reference
+**`components/`** — Presentational. A component renders what it receives and calls the callbacks it is given. It does not know whether those callbacks go to a real socket or a Jest mock.
 
-#### `app/page.tsx` — Home
+**`hooks/`** — Where the complexity lives. If you need to subscribe to a new socket event or add a new game action, this is where it goes — not in the page and not in the component.
 
-The landing page. Lets the user:
-- Enter a name and pick an emoji
-- Choose a game type (Times Up / Tic-Tac-Toe)
-- Create a new room (`POST /api/rooms/`) → redirects to `/room/{id}`
-- Or join an existing room by typing a code → redirects to `/room/{id}`
-
-On successful room creation, the server-assigned `player_id` is saved to `localStorage` under the key `player_{roomId}`.
-
-**You touch this file when**: adding a new game to the selector, or changing the join/create flow.
-
----
-
-#### `app/room/[id]/page.tsx` — Lobby
-
-The waiting room. This is where players see the QR code, watch others join, and the host starts the game.
-
-On mount it:
-1. Reads `playerId` from `localStorage` (key `player_{roomId}`) or from `?pid=` in the URL
-2. Connects via `useGame` and emits `room:join`
-3. Listens for `room:updated` to refresh the player list
-4. Redirects everyone to `/play` when `room.status === "playing"`
-
-The "Start game" button is only shown to the host and is disabled until the minimum player count for the selected game is met.
-
-**You touch this file when**: changing the lobby UI, the start-game validation rules, or the reconnection logic.
-
----
-
-#### `app/room/[id]/play/page.tsx` — Play
-
-The in-game screen. On mount it reconnects to the socket room (using the same `?pid=` or `localStorage` pattern as the lobby) and renders the right game component based on `room.config.game`:
-
-```typescript
-if (room.config.game === "tic_tac_toe") return <TicTacToePlay ... />
-// else: Times Up placeholder
-```
-
-**You touch this file when**: adding a new game's UI component, or changing what happens after a game ends.
-
----
-
-#### `hooks/useSocket.ts`
-
-Creates and owns a single `socket.io-client` connection. Exposes:
-
-```typescript
-const { socket, status, emit, on, off } = useSocket()
-```
-
-`status` can be `"connecting"`, `"connected"`, `"disconnected"`, or `"error"` — useful for showing a connection indicator in the UI.
-
-**Important**: this hook creates a new socket on every component mount. It is not a global singleton. Each page that calls `useSocket` (or `useGame`) has its own connection. This is intentional — it avoids stale connections persisting across navigation.
-
-**You touch this file when**: changing connection options (timeout, transports, auth).
-
----
-
-#### `hooks/useGame.ts`
-
-The main hook that drives the entire game protocol. It:
-1. Creates a socket via `useSocket`
-2. Subscribes to all server events: `room:updated`, `room:joined`, `game:started`, `game:updated`, `game:finished`, `error`
-3. Exposes state: `room`, `tttState`, `gameResult`, `playerId`, `error`
-4. Exposes actions: `join`, `startGame`, `makeMove`, `cardGuessed`, `cardPassed`
-
-Pages call this hook and pass the returned actions down to components as props. Components never import or call this hook directly.
-
-**You touch this file when**: adding a new socket event subscription, a new game action, or new state that needs to persist across renders.
-
----
-
-#### `types/room.ts`
-
-TypeScript mirror of `app/models/room.py`. Contains `Player`, `RoomConfig`, `Room`, and `RoomStatus`.
-
-If you add a field to the Python `Player` model, add it here too — otherwise TypeScript won't know it exists when the frontend receives a `room:updated` event.
-
----
-
-#### `types/game.ts`
-
-TypeScript mirror of the game-related parts of `app/models/game.py`. Contains `TicTacToeState` and `GameFinishedPayload`.
-
-When you add a new game, add its state type here.
-
----
-
-#### `types/events.ts`
-
-Typed payload interfaces for every socket event the client **sends**. This is documentation as much as it is code — it makes it immediately clear what data each event requires.
-
-```typescript
-export interface GameMakeMovePayload {
-  room_id: string
-  player_id: string
-  cell_index: number
-}
-```
-
-**You touch this file when**: adding a new socket event that the client emits.
-
----
-
-#### `components/TicTacToePlay.tsx`
-
-The complete Tic-Tac-Toe game UI. Receives all data and callbacks as props:
-
-```typescript
-<TicTacToePlay
-  state={tttState}
-  room={room}
-  playerId={playerId}
-  onMove={(cellIndex) => makeMove(cellIndex)}
-  onPlayAgain={() => router.push(`/room/${roomId}?pid=${playerId}`)}
-/>
-```
-
-It does not know about sockets or Redux. It just renders state and calls callbacks. This makes it fully testable with React Testing Library — you pass a mock `onMove` and assert it was called with the right index.
-
-**You touch this file when**: changing the board UI, the result overlay, or the winning-cell highlight logic.
-
----
-
-#### `components/EmojiPicker.tsx`
-
-A dropdown grid of ~90 emojis. Controlled component: receives a `value` and an `onChange` callback. Closes on outside click via a `mousedown` listener on `document`.
-
-**You touch this file when**: adding more emojis or changing the picker layout.
+**`types/`** — Kept in sync with the Python models manually. If a model changes on the backend, update the corresponding type here too.
 
 ---
 
@@ -493,38 +205,38 @@ A dropdown grid of ~90 emojis. Controlled component: receives a `value` and an `
 Concrete example: player clicks cell 4 in Tic-Tac-Toe.
 
 ```
-1. TicTacToePlay
+1. TicTacToePlay  (component)
    User clicks cell 4 → calls onMove(4)
 
-2. play/page.tsx
-   onMove={makeMove} → makeMove(4)
+2. play/page.tsx  (page)
+   onMove is wired to makeMove from useGame → makeMove(4)
 
-3. useGame.ts — makeMove()
-   socket.emit("game:make_move", { room_id, player_id, cell_index: 4 })
+3. useGame.ts  (hook)
+   Emits socket event: game:make_move { room_id, player_id, cell_index: 4 }
 
-4. sockets/game.py — make_move()
+4. sockets/game.py  (socket handler)
    Loads room and game state from Redis
    Calls TicTacToeEngine.make_move(state, player_id, 4)
 
-5. games/tic_tac_toe/engine.py — make_move()
+5. games/tic_tac_toe/engine.py  (pure logic)
    Validates: is it this player's turn? Is cell 4 empty?
-   Places the piece: board[4] = player_id
-   Checks all 8 winning lines → no winner yet
+   Places the piece on the board
+   Checks all winning lines → no winner yet
    Returns updated GameState
 
-6. sockets/game.py (continued)
+6. sockets/game.py  (continued)
    Saves updated GameState to Redis
-   Broadcasts: sio.emit("game:updated", state.model_dump(), room=room_id)
+   Broadcasts game:updated to everyone in the room
 
-7. useGame.ts — on("game:updated")
-   Updates tttState in React state → triggers re-render
+7. useGame.ts  (hook, all connected clients)
+   Receives game:updated → updates tttState in React state → re-render
 
-8. TicTacToePlay
+8. TicTacToePlay  (component)
    Receives new state as prop → renders board with piece in cell 4
-   turn indicator updates to the other player
+   Turn indicator updates to the other player
 ```
 
-If step 5 raises a `ValueError` (e.g. cell already occupied), step 6 emits an `error` event instead, and step 7 updates the `error` state in `useGame` — the component can then show the message.
+If step 5 raises a validation error (e.g. cell already occupied), step 6 emits an `error` event to the sender only, and step 7 updates the `error` state in `useGame` so the component can display the message.
 
 ---
 
@@ -542,11 +254,11 @@ One test file per module. The naming convention is `test_{module}.py`.
 | `test_times_up.py` | `TimesUpEngine` — all game logic |
 | `test_tic_tac_toe.py` | `TicTacToeEngine` — all game logic |
 
-The `conftest.py` provides two shared fixtures:
+`conftest.py` provides two shared fixtures used across integration tests:
 - `client` — an async HTTP client mounted on the ASGI app (no real server needed)
-- `mock_redis` — patches `aioredis.from_url` so tests never touch a real Redis
+- `mock_redis` — patches the Redis client so tests never touch a real Redis instance
 
-Game engine tests need neither fixture — they just instantiate the engine and call methods.
+Game engine tests need neither fixture — they just instantiate the engine and call methods directly.
 
 ```bash
 make test-api          # run all backend tests
@@ -565,7 +277,7 @@ Tests live next to the code they test, in `__tests__/` folders.
 | `hooks/__tests__/useSocket.test.ts` | Socket connection lifecycle |
 | `hooks/__tests__/useGame.test.ts` | Game event handling and state updates |
 
-Components are tested in isolation — socket calls are mocked. The tests assert on what the user sees (rendered text, disabled buttons) and on what callbacks are called, not on implementation details.
+Components are tested in isolation — socket calls are mocked. Tests assert on what the user sees (rendered text, disabled buttons) and on which callbacks are called, not on implementation internals.
 
 ```bash
 make test-web    # run all frontend tests
@@ -577,7 +289,7 @@ make test-web    # run all frontend tests
 
 ### Seeing API logs
 
-Run the API in a dedicated terminal. Logs are coloured and structured:
+Run the API in a dedicated terminal. Logs are colour-coded and structured:
 
 ```bash
 make dev-api
