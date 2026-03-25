@@ -435,8 +435,10 @@ apps/api/tests/test_my_game.py
 - [x] Real-time rooms with WebSocket
 - [x] QR code to join a room
 - [x] Unit tests for backend and frontend
-- [ ] Complete game UI (active turn, timer, cards)
-- [ ] Leaderboard at the end of the game
+- [x] Tic-Tac-Toe — full game (engine, UI, tests)
+- [x] Leaderboard at the end of the game
+- [x] Player identity scoped per room (reconnection support)
+- [ ] Complete Time's Up UI (active turn, timer, cards)
 
 ### Phase 2 — Product
 - [ ] Server-managed turn timer
