@@ -9,6 +9,12 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **API structured logging**: coloured, human-readable logs visible in the `make dev-api` terminal
+  - `logging_config.py`: `setup_logging(env)` configures root logger with `_ColourFormatter` (ANSI colours + timestamps in dev, plain in prod); DEBUG level in `development`, INFO in production
+  - HTTP request logging middleware in `main.py`: logs method, path, status code and elapsed time for every request
+  - Socket.IO event logging in `room.py` and `game.py`: INFO on connect/disconnect, join, leave, game start/finish; DEBUG on every event entry; ERROR with full traceback on unhandled exceptions
+  - `try/except` guards on all socket handlers — exceptions are now logged instead of being silently swallowed by python-socketio
+  - Noisy third-party loggers (socketio, engineio, asyncio, uvicorn.access) silenced to WARNING
 - **Tic-Tac-Toe game**: full implementation of classic 3-in-a-row as a second game in Dynamizer
   - Backend: `TicTacToeEngine` (pure, no I/O) with `initialize`, `make_move`, `_check_winner`, `leaderboard`; detects wins (rows, columns, diagonals) and draws
   - Backend: `game:make_move` Socket.IO event handler; `game:finished` broadcast on game end
