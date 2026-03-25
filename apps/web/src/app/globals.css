@@ -521,6 +521,342 @@ p {
   line-height: 1.4;
 }
 
+/* ─── Navbar ─────────────────────────────────────────────────────────────────── */
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(15, 14, 23, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.navbar-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--color-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navbar-logo:hover {
+  color: var(--color-accent);
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  list-style: none;
+  flex: 1;
+}
+
+.navbar-link {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+.navbar-link:hover {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.navbar-link--active {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.navbar-cta {
+  margin-left: auto;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+
+/* ─── Static layout ──────────────────────────────────────────────────────────── */
+
+.static-layout {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.static-main {
+  flex: 1;
+}
+
+.static-page {
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.static-container {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+}
+
+/* ─── Static hero ────────────────────────────────────────────────────────────── */
+
+.static-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.static-hero__eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.static-hero__title {
+  font-size: 2.25rem;
+  color: var(--color-text);
+}
+
+.static-hero__subtitle {
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+  max-width: 560px;
+}
+
+/* ─── Static section ─────────────────────────────────────────────────────────── */
+
+.static-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.static-section__title {
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+/* ─── Static list (about principles) ────────────────────────────────────────── */
+
+.static-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.static-list li {
+  display: flex;
+  gap: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.static-list__icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.static-list li strong {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-xs);
+}
+
+/* ─── Games page ─────────────────────────────────────────────────────────────── */
+
+.games-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.game-card {
+  display: flex;
+  gap: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  transition: border-color 0.15s;
+}
+
+.game-card:hover {
+  border-color: var(--color-primary);
+}
+
+.game-card__icon {
+  font-size: 3rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.game-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.game-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.game-card__title {
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+.game-card__tagline {
+  font-size: 0.85rem;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.game-card__description {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+.game-card__meta {
+  display: flex;
+  gap: var(--space-md);
+  font-size: 0.8rem;
+  color: var(--color-text-faint);
+  margin-top: var(--space-xs);
+}
+
+/* ─── Team page ──────────────────────────────────────────────────────────────── */
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+.team-card {
+  display: flex;
+  gap: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.team-card__avatar {
+  font-size: 2.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.team-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.team-card__name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.team-card__role {
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.team-card__bio {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+/* ─── Contact page ───────────────────────────────────────────────────────────── */
+
+.contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.contact-card {
+  display: flex;
+  gap: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.contact-card:hover {
+  border-color: var(--color-primary);
+  background: rgba(124, 92, 191, 0.06);
+}
+
+.contact-card__icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.contact-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.contact-card__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.contact-card__description {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.contact-card__action {
+  font-size: 0.85rem;
+  color: var(--color-primary-hover);
+  font-weight: 600;
+}
+
 /* ─── Tic-Tac-Toe board ──────────────────────────────────────────────────────── */
 
 .ttt-board {
