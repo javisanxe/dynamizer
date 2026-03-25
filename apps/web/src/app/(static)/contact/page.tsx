@@ -2,16 +2,18 @@ const CONTACT_OPTIONS = [
   {
     icon: '🐛',
     title: 'Bug report',
-    description: 'Found something broken? Open an issue on GitHub.',
-    action: 'Open an issue',
+    description: 'Found something broken? Open an issue and we will look at it.',
+    action: 'Open an issue on GitHub',
     href: 'https://github.com/javisanxe/dynamizer/issues/new',
+    recommended: true,
   },
   {
     icon: '💡',
     title: 'Feature request',
-    description: 'Have an idea? Start a discussion on GitHub.',
+    description: 'Have an idea for a new game or improvement? Start a discussion.',
     action: 'Start a discussion',
     href: 'https://github.com/javisanxe/dynamizer/discussions',
+    recommended: false,
   },
   {
     icon: '✉️',
@@ -19,6 +21,7 @@ const CONTACT_OPTIONS = [
     description: 'Press, partnerships, or anything that does not fit above.',
     action: 'placeholder@email.com',
     href: 'mailto:placeholder@email.com',
+    recommended: false,
   },
 ]
 
@@ -27,6 +30,7 @@ export default function ContactPage() {
     <div className="static-page">
       <div className="static-container">
 
+        {/* ── Hero ──────────────────────────────────────────────────────── */}
         <div className="static-hero">
           <div className="static-hero__eyebrow">Contact</div>
           <h1 className="static-hero__title">Get in touch</h1>
@@ -35,6 +39,7 @@ export default function ContactPage() {
           </p>
         </div>
 
+        {/* ── Contact options ────────────────────────────────────────────── */}
         <div className="contact-list">
           {CONTACT_OPTIONS.map((option) => (
             <a
@@ -46,7 +51,12 @@ export default function ContactPage() {
             >
               <div className="contact-card__icon">{option.icon}</div>
               <div className="contact-card__body">
-                <p className="contact-card__title">{option.title}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                  <p className="contact-card__title">{option.title}</p>
+                  {option.recommended && (
+                    <span className="badge badge-recommended">Recommended</span>
+                  )}
+                </div>
                 <p className="contact-card__description">{option.description}</p>
                 <span className="contact-card__action">{option.action} →</span>
               </div>

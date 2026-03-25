@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 
 const NAV_LINKS = [
   { href: '/games',   label: 'Games' },
@@ -12,6 +13,7 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const pathname = usePathname()
+  const [open, setOpen] = useState(false)
 
   return (
     <nav className="navbar">
@@ -20,12 +22,13 @@ export default function Navbar() {
           🎮 <span>Dynamizer</span>
         </Link>
 
-        <ul className="navbar-links">
+        <ul className={`navbar-links${open ? ' navbar-links--open' : ''}`}>
           {NAV_LINKS.map(({ href, label }) => (
             <li key={href}>
               <Link
                 href={href}
                 className={`navbar-link${pathname === href ? ' navbar-link--active' : ''}`}
+                onClick={() => setOpen(false)}
               >
                 {label}
               </Link>
@@ -36,6 +39,17 @@ export default function Navbar() {
         <Link href="/" className="btn btn-accent navbar-cta">
           ▶ Play
         </Link>
+
+        <button
+          className="navbar-hamburger"
+          aria-label="Toggle menu"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className="navbar-hamburger__bar" />
+          <span className="navbar-hamburger__bar" />
+          <span className="navbar-hamburger__bar" />
+        </button>
       </div>
     </nav>
   )
