@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import EmojiPicker from '@/components/EmojiPicker'
 
 type GameSlug = 'times_up' | 'tic_tac_toe'
@@ -11,7 +12,7 @@ const GAMES: { slug: GameSlug; icon: string; title: string; description: string 
     slug: 'times_up',
     icon: '🃏',
     title: "Time's Up",
-    description: 'Guess famous characters in 3 rounds. 2-8 players.',
+    description: 'Guess famous characters in 3 rounds. 2–8 players.',
   },
   {
     slug: 'tic_tac_toe',
@@ -67,19 +68,29 @@ export default function HomePage() {
   }
 
   return (
-    <div className="page">
-      <div className="container">
+    <div className="home-page">
 
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 'var(--space-2xl)' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 'var(--space-sm)' }}>🎮</div>
-          <h1 style={{ fontSize: '2.5rem', color: 'var(--color-text)', marginBottom: 'var(--space-sm)' }}>
-            Dynamizer
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <header className="home-hero">
+        <div className="home-hero__glow" aria-hidden="true" />
+        <div className="home-hero__content">
+          <div className="home-hero__icon">🎮</div>
+          <h1 className="home-hero__title">
+            Play together,<br />
+            <span className="text-accent">anywhere.</span>
           </h1>
-          <p style={{ fontSize: '1rem' }}>
-            Social games for groups. Create a room or join with a code.
+          <p className="home-hero__subtitle">
+            Real-time social games for groups. No app, no account — just share a link.
           </p>
+          <div className="home-hero__links">
+            <Link href="/games" className="home-hero__link">See all games →</Link>
+            <Link href="/about" className="home-hero__link">About the project →</Link>
+          </div>
         </div>
+      </header>
+
+      {/* ── Form ─────────────────────────────────────────────────────────── */}
+      <div className="home-form">
 
         {error && (
           <div className="error-msg" style={{ marginBottom: 'var(--space-md)' }}>
@@ -88,7 +99,7 @@ export default function HomePage() {
         )}
 
         {/* Profile */}
-        <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+        <div className="card">
           <p className="section-title">Your profile</p>
           <div className="input-group">
             <input
@@ -107,8 +118,6 @@ export default function HomePage() {
         {/* Create room */}
         <div className="card">
           <p className="section-title">Create a room</p>
-
-          {/* Game selector */}
           <div className="game-selector" style={{ marginBottom: 'var(--space-md)' }}>
             {GAMES.map((g) => (
               <button
@@ -123,13 +132,12 @@ export default function HomePage() {
               </button>
             ))}
           </div>
-
           <button
             className="btn btn-primary btn-full btn-lg"
             onClick={createRoom}
             disabled={loading}
           >
-            {loading ? 'Creating...' : '✨ Create room'}
+            {loading ? 'Creating...' : 'Create room'}
           </button>
         </div>
 
@@ -157,6 +165,26 @@ export default function HomePage() {
           >
             Join →
           </button>
+        </div>
+
+        {/* Footer links */}
+        <div className="home-footer-links">
+          <Link href="/about" className="home-footer-link">About</Link>
+          <span className="home-footer-sep">·</span>
+          <Link href="/games" className="home-footer-link">Games</Link>
+          <span className="home-footer-sep">·</span>
+          <Link href="/team" className="home-footer-link">Team</Link>
+          <span className="home-footer-sep">·</span>
+          <Link href="/contact" className="home-footer-link">Contact</Link>
+          <span className="home-footer-sep">·</span>
+          <a
+            href="https://github.com/javisanxe/dynamizer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="home-footer-link"
+          >
+            GitHub
+          </a>
         </div>
 
       </div>

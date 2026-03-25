@@ -17,9 +17,9 @@ describe('HomePage', () => {
     jest.clearAllMocks()
   })
 
-  it('renders the Dynamizer title', () => {
+  it('renders the hero headline', () => {
     render(<HomePage />)
-    expect(screen.getByText('Dynamizer')).toBeInTheDocument()
+    expect(screen.getByText(/play together/i)).toBeInTheDocument()
   })
 
   it('renders the name input', () => {
