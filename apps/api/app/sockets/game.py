@@ -90,6 +90,16 @@ def register_game_events(sio: socketio.AsyncServer):
 
         if state.finished:
             leaderboard = game_service.get_engine(state.game).leaderboard(state)
+
+            # Reset room to WAITING so players can return to the lobby and start again
+            room.status = RoomStatus.WAITING
+            for player in room.players:
+                player.score = next(
+                    (entry["points"] for entry in leaderboard if entry["player_id"] == player.id),
+                    player.score,
+                )
+            await room_service.save_room(room)
+
             await sio.emit(
                 "game:finished",
                 {
@@ -99,6 +109,7 @@ def register_game_events(sio: socketio.AsyncServer):
                 },
                 room=room_id,
             )
+            await sio.emit("room:updated", room.model_dump(), room=room_id)
 
     @sio.on("game:card_guessed")
     async def card_guessed(sid, data):

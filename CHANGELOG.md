@@ -35,6 +35,11 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `join()` in `useGame` accepts an optional `existingPlayerId` parameter for reconnection flows
 - Badge **"tú"** (accent colour) shown next to the current player's entry in the lobby player list
 - 2 new backend tests for `room:join` reconnection logic; 4 new frontend tests for `useGame` reconnection and `room:joined` handling
+- Play page passes `?pid=<playerId>` in the URL when navigating to `/room/:id/play`, and reads it on mount with priority over localStorage — prevents test-player tabs from losing their identity during navigation
+- Lobby reads `?pid=` from the URL on mount (both normal and test-player flows) so returning from the play page reconnects as the same player
+- `onPlayAgain` in the play page now navigates to `/room/:id?pid=<playerId>` so identity is preserved on the return trip
+- 11 new frontend tests for `TicTacToePlay` component (loser overlay, occupied-cell disable, winner-cell highlight, leaderboard, missing-onPlayAgain)
+- 6 new frontend tests for the play page (`playPage.test.tsx`) covering loading states, error display, and back-to-lobby navigation
 
 ### Changed
 - Minimum players required to start a game lowered from 2 to 1 (backend + frontend)
@@ -49,6 +54,8 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Opening a second browser tab to join a room would inherit the host's `player_id` from `localStorage` and enter as the host — fixed by scoping the key to the room and always showing the join form for unknown players
 - Play page was rendering Time's Up for all games because `room` was `null` on first render — the TTT branch now only evaluates after `room` data arrives
 - Play page socket was never joining the backend room group, causing `game:started` and `game:updated` to be silently dropped
+- **Back to lobby**: after a game ends, the room was left in `PLAYING` status in Redis, causing the lobby to immediately redirect back to `/play` in a loop — the backend now resets the room to `WAITING` and emits `room:updated` as part of the `game:finished` flow
+- **`game:finished` never fired**: a `KeyError` (`entry["score"]` instead of `entry["points"]`) in `game.py` was silently crashing the socket handler after emitting `game:updated`, preventing `game:finished` and the room reset from ever being sent to clients
 
 ---
 

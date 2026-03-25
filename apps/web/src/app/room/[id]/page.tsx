@@ -44,15 +44,17 @@ export default function LobbyPage() {
 
   const { room, error, socketStatus, join, startGame } = useGame(roomId, playerId, handleRoomJoined)
 
-  // Normal flow: if we have a stored player_id for this room, reconnect automatically.
-  // If not, show the join form.
+  // Normal flow: if we have a stored player_id for this room (or ?pid= in URL),
+  // reconnect automatically. Otherwise show the join form.
   useEffect(() => {
     if (isTestPlayer) return
     if (socketStatus !== 'connected') return
     if (autoJoinedRef.current) return
     autoJoinedRef.current = true
 
-    const storedId = localStorage.getItem(playerKey(roomId))
+    // ?pid= takes priority (e.g. returning from play page), then localStorage
+    const pidFromUrl = searchParams.get('pid') ?? ''
+    const storedId = pidFromUrl || (localStorage.getItem(playerKey(roomId)) ?? '')
     const storedName = localStorage.getItem('name') ?? ''
     const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
     setName(storedName)
@@ -64,26 +66,43 @@ export default function LobbyPage() {
       setJoined(true)
     }
     // If no storedId: joined stays false → join form is shown
-  }, [isTestPlayer, socketStatus, roomId, join])
+  }, [isTestPlayer, socketStatus, roomId, join, searchParams])
 
-  // Test player flow: auto-fill and auto-join with a random identity (no localStorage)
+  // Test player flow: reconnect if ?pid= is present (returning from play page),
+  // otherwise auto-fill and auto-join with a random identity (no localStorage)
   useEffect(() => {
     if (!isTestPlayer || autoJoinedRef.current) return
     if (socketStatus !== 'connected') return
     autoJoinedRef.current = true
-    const testName = randomItem(TEST_NAMES)
-    const testEmoji = randomItem(TEST_EMOJIS)
-    setName(testName)
-    setEmoji(testEmoji)
-    join(testName, testEmoji)
+
+    const pidFromUrl = searchParams.get('pid') ?? ''
+    if (pidFromUrl) {
+      // Returning from play page — reconnect with the same identity
+      const storedName = localStorage.getItem('name') ?? 'Player 2'
+      const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
+      setName(storedName)
+      setEmoji(storedEmoji)
+      join(storedName, storedEmoji, pidFromUrl)
+    } else {
+      const testName = randomItem(TEST_NAMES)
+      const testEmoji = randomItem(TEST_EMOJIS)
+      setName(testName)
+      setEmoji(testEmoji)
+      join(testName, testEmoji)
+    }
     setJoined(true)
-  }, [isTestPlayer, socketStatus, join])
+  }, [isTestPlayer, socketStatus, join, searchParams])
 
   useEffect(() => {
     if (room?.status === 'playing') {
-      router.push(`/room/${roomId}/play`)
+      // Pass player_id in the URL so the play page knows who we are even when
+      // localStorage belongs to a different player (e.g. test player tab).
+      const dest = playerId
+        ? `/room/${roomId}/play?pid=${playerId}`
+        : `/room/${roomId}/play`
+      router.push(dest)
     }
-  }, [room?.status, roomId, router])
+  }, [room?.status, roomId, router, playerId])
 
   function handleJoin() {
     localStorage.setItem('name', name)

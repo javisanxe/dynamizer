@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useGame } from '@/hooks/useGame'
 import TicTacToePlay from '@/components/TicTacToePlay'
@@ -8,32 +8,29 @@ import TicTacToePlay from '@/components/TicTacToePlay'
 export default function PlayPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const roomId = params.id as string
 
-  // Read synchronously on first render to avoid the '' → real-id flash
+  // ?pid= takes priority over localStorage — lets test-player tabs carry their
+  // own identity without sharing the host's localStorage entry.
+  const pidFromUrl = searchParams.get('pid') ?? ''
   const storedId = typeof window !== 'undefined'
     ? (localStorage.getItem(`player_${roomId}`) ?? '')
     : ''
-  const [playerIdReady] = useState<string>(storedId)
-  const [playerId, setPlayerId] = useState<string>(storedId)
+  const resolvedId = pidFromUrl || storedId
 
-  useEffect(() => {
-    const id = localStorage.getItem(`player_${roomId}`) ?? ''
-    setPlayerId(id)
-  }, [roomId])
-
-  const effectivePlayerId = playerIdReady || playerId
+  const [playerId] = useState<string>(resolvedId)
 
   const { room, error, socketStatus, tttState, gameResult, cardGuessed, cardPassed, makeMove, join } =
-    useGame(roomId, effectivePlayerId)
+    useGame(roomId, playerId)
 
   // Reconnect this socket to the room group so we receive game:started / game:updated
   useEffect(() => {
     if (socketStatus !== 'connected') return
-    if (!effectivePlayerId) return
+    if (!playerId) return
     const storedName = localStorage.getItem('name') ?? ''
     const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
-    join(storedName, storedEmoji, effectivePlayerId)
+    join(storedName, storedEmoji, playerId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socketStatus])
 
@@ -82,10 +79,10 @@ export default function PlayPage() {
             <TicTacToePlay
               state={tttState}
               players={room.players}
-              myPlayerId={effectivePlayerId}
+              myPlayerId={playerId}
               gameResult={gameResult}
               onMove={makeMove}
-              onPlayAgain={() => router.push(`/room/${roomId}`)}
+              onPlayAgain={() => router.push(playerId ? `/room/${roomId}?pid=${playerId}` : `/room/${roomId}`)}
             />
           ) : (
             <div className="card" style={{ textAlign: 'center' }}>
