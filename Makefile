@@ -30,6 +30,10 @@ logs: ## Show Docker Compose logs (all services)
 logs-api: ## Stream API logs (Docker)
 	docker-compose logs -f api
 
+.PHONY: redis
+redis: ## Open Redis CLI
+	docker compose exec redis redis-cli
+
 # ─── Setup ────────────────────────────────────────────────────────────────────
 
 .PHONY: install
@@ -77,7 +81,9 @@ test-web: ## Run frontend tests (Jest)
 	npm test --prefix $(WEB_DIR)
 
 .PHONY: test-cov
-test-cov: test-cov-api test-cov-web ## Run all tests with coverage
+test-cov: ## Run all tests with coverage (backend + frontend)
+	$(POETRY) run pytest tests --cov=app --cov-report=term-missing
+	npm test --prefix $(WEB_DIR) -- --coverage
 
 .PHONY: test-cov-api
 test-cov-api: ## Run backend tests with coverage report

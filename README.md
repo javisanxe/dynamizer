@@ -238,7 +238,8 @@ The backend is also available at:
 ```
 make install        # install all dependencies (backend + frontend)
 make up / down      # start / stop Docker Compose (Postgres + Redis)
-make logs           # follow Docker Compose logs
+make logs           # follow Docker Compose logs (all services)
+make logs-api       # follow API logs only (Docker)
 
 make dev            # start backend + frontend in parallel
 make dev-api        # start FastAPI only (port 8000)
@@ -246,8 +247,11 @@ make dev-web        # start Next.js only (port 3000)
 
 make test           # run all tests
 make test-api       # run backend tests (pytest)
+make test-api-logs  # run backend tests with DEBUG log output
 make test-web       # run frontend tests (Jest)
 make test-cov       # run all tests with coverage report
+
+make redis          # open Redis CLI (requires make up)
 
 make lint           # run ruff + ESLint
 make format         # format backend code with ruff
@@ -258,13 +262,41 @@ make help           # list all available targets
 
 ---
 
-## How to Run Tests
+## Debugging
+
+### API logs
+
+The API emits structured, colour-coded logs to stdout. To see them in real time, run the API in a dedicated terminal:
 
 ```bash
-make test           # all tests (backend + frontend)
-make test-api       # backend only (pytest)
-make test-web       # frontend only (Jest)
-make test-cov       # all tests with coverage report
+make dev-api
+```
+
+Each line has the format `HH:MM:SS  LVL  module  message`:
+
+```
+14:03:22  INF  app.sockets.room  room:join new player room=ABC01 player=p1 name=Javi
+14:03:24  INF  app.sockets.game  game:start room=ABC01 game=tic_tac_toe players=2
+14:03:31  INF  app.sockets.game  game:finished room=ABC01 winner=p1
+14:03:31  INF  app.main  GET /api/rooms/ABC01 200  3ms
+```
+
+If the API runs via Docker, use `make logs-api` instead.
+
+### Inspecting Redis
+
+```bash
+make redis          # opens redis-cli
+```
+
+Useful commands inside:
+
+```
+KEYS *                  # list all keys
+GET room:ABC01          # read a room
+GET game_state:ABC01    # read a game state
+TTL room:ABC01          # check expiry (rooms expire after 6 hours of inactivity)
+FLUSHALL                # wipe everything (local dev only)
 ```
 
 ---
