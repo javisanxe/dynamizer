@@ -27,6 +27,12 @@ describe('HomePage', () => {
     expect(screen.getByPlaceholderText('Your name')).toBeInTheDocument()
   })
 
+  it('renders both game options', () => {
+    render(<HomePage />)
+    expect(screen.getByText("Time's Up")).toBeInTheDocument()
+    expect(screen.getByText('Tic-Tac-Toe')).toBeInTheDocument()
+  })
+
   it('shows error when trying to create a room without a name', () => {
     render(<HomePage />)
     fireEvent.click(screen.getByRole('button', { name: /create room/i }))

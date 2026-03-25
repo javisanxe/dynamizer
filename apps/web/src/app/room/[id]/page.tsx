@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import { useGame } from '@/hooks/useGame'
@@ -15,6 +15,11 @@ function randomItem<T>(arr: T[]): T {
 
 const isDev = process.env.NODE_ENV === 'development'
 
+/** localStorage key scoped to a specific room, avoiding cross-room identity collisions. */
+function playerKey(roomId: string) {
+  return `player_${roomId}`
+}
+
 export default function LobbyPage() {
   const params = useParams()
   const router = useRouter()
@@ -25,26 +30,43 @@ export default function LobbyPage() {
   const [playerId, setPlayerId] = useState<string>('')
   const [name, setName] = useState<string>('')
   const [emoji, setEmoji] = useState<string>('🎮')
+  // joined = we have shown the form and the user has submitted it (or we're reconnecting)
   const [joined, setJoined] = useState(false)
   const autoJoinedRef = useRef(false)
 
-  const { room, error, socketStatus, join, startGame } = useGame(roomId, playerId)
+  // Called by useGame when the server confirms our identity via room:joined
+  const handleRoomJoined = useCallback((id: string) => {
+    setPlayerId(id)
+    if (!isTestPlayer) {
+      localStorage.setItem(playerKey(roomId), id)
+    }
+  }, [roomId, isTestPlayer])
 
-  // Normal flow: restore player from localStorage
+  const { room, error, socketStatus, join, startGame } = useGame(roomId, playerId, handleRoomJoined)
+
+  // Normal flow: if we have a stored player_id for this room, reconnect automatically.
+  // If not, show the join form.
   useEffect(() => {
     if (isTestPlayer) return
-    const storedId = localStorage.getItem('player_id')
+    if (socketStatus !== 'connected') return
+    if (autoJoinedRef.current) return
+    autoJoinedRef.current = true
+
+    const storedId = localStorage.getItem(playerKey(roomId))
     const storedName = localStorage.getItem('name') ?? ''
     const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
-    if (storedId) {
-      setPlayerId(storedId)
-      setJoined(true)
-    }
     setName(storedName)
     setEmoji(storedEmoji)
-  }, [isTestPlayer])
 
-  // Test player flow: auto-fill and auto-join once socket is connected
+    if (storedId) {
+      // Reconnect: send stored player_id so the backend reuses the existing player
+      join(storedName, storedEmoji, storedId)
+      setJoined(true)
+    }
+    // If no storedId: joined stays false → join form is shown
+  }, [isTestPlayer, socketStatus, roomId, join])
+
+  // Test player flow: auto-fill and auto-join with a random identity (no localStorage)
   useEffect(() => {
     if (!isTestPlayer || autoJoinedRef.current) return
     if (socketStatus !== 'connected') return
@@ -64,6 +86,8 @@ export default function LobbyPage() {
   }, [room?.status, roomId, router])
 
   function handleJoin() {
+    localStorage.setItem('name', name)
+    localStorage.setItem('emoji', emoji)
     join(name, emoji)
     setJoined(true)
   }
@@ -73,7 +97,7 @@ export default function LobbyPage() {
   }
 
   const roomUrl = typeof window !== 'undefined' ? `${window.location.origin}/room/${roomId}` : ''
-  const isHost = room?.host_id === playerId
+  const isHost = !!playerId && room?.host_id === playerId
 
   return (
     <div className="page">
@@ -99,7 +123,7 @@ export default function LobbyPage() {
           </div>
         )}
 
-        {/* Join form — shown to players who arrived via QR */}
+        {/* Join form — shown to new players who arrived via QR or room code */}
         {!joined && (
           <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
             <p className="section-title">Join the room</p>
@@ -142,31 +166,53 @@ export default function LobbyPage() {
         {room && (
           <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
             <p className="section-title">
-              Players — {room.players.length}/{room.config.max_players}
+              Players — {room.players.length}
+              {room.config.game === 'tic_tac_toe' ? '/2' : `/${room.config.max_players}`}
             </p>
             <ul className="player-list">
               {room.players.map((p) => (
                 <li key={p.id} className="player-item">
                   <span className="player-emoji">{p.emoji}</span>
                   <span className="player-name">{p.name}</span>
+                  {p.id === playerId && (
+                    <span className="badge badge-you">tú</span>
+                  )}
                   {p.is_host && <span className="badge badge-primary">host</span>}
                 </li>
               ))}
             </ul>
+            {room.config.game === 'tic_tac_toe' && room.players.length < 2 && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)', textAlign: 'center' }}>
+                Waiting for 1 more player...
+              </p>
+            )}
           </div>
         )}
 
         {/* Start game — host only */}
-        {isHost && (
-          <button
-            className="btn btn-accent btn-full btn-lg"
-            onClick={startGame}
-            disabled={!room || room.players.length < 1}
-            style={{ marginTop: 'var(--space-sm)' }}
-          >
-            🚀 Start game
-          </button>
-        )}
+        {isHost && (() => {
+          const isTtt = room?.config.game === 'tic_tac_toe'
+          const canStart = isTtt
+            ? room?.players.length === 2
+            : (room?.players.length ?? 0) >= 1
+          const hint = isTtt && !canStart ? 'Need exactly 2 players' : undefined
+          return (
+            <div style={{ marginTop: 'var(--space-sm)' }}>
+              <button
+                className="btn btn-accent btn-full btn-lg"
+                onClick={startGame}
+                disabled={!canStart}
+              >
+                🚀 Start game
+              </button>
+              {hint && (
+                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 'var(--space-xs)' }}>
+                  {hint}
+                </p>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Waiting message — non-host */}
         {joined && !isHost && room && room.status === 'waiting' && (
