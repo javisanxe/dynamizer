@@ -23,8 +23,12 @@ down: ## Stop Docker Compose services
 	docker-compose down
 
 .PHONY: logs
-logs: ## Show Docker Compose logs
+logs: ## Show Docker Compose logs (all services)
 	docker-compose logs -f
+
+.PHONY: logs-api
+logs-api: ## Stream API logs (Docker)
+	docker-compose logs -f api
 
 # ─── Setup ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +67,10 @@ test: test-api test-web ## Run all tests (backend + frontend)
 .PHONY: test-api
 test-api: ## Run backend tests (pytest)
 	$(POETRY) run pytest tests -v
+
+.PHONY: test-api-logs
+test-api-logs: ## Run backend tests showing log output (DEBUG level)
+	$(POETRY) run pytest tests -v -s --log-cli-level=DEBUG
 
 .PHONY: test-web
 test-web: ## Run frontend tests (Jest)
