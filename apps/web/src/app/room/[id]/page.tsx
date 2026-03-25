@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useGame } from '@/hooks/useGame'
 import EmojiPicker from '@/components/EmojiPicker'
 
-const TEST_NAMES = ['Player 2', 'Alex', 'Sam', 'Jordan', 'Casey', 'Morgan', 'Riley', 'Taylor']
+const TEST_NAMES = ['Oscar', 'Adria', 'Julia', 'Gerard', 'Smoky', 'Brotón', 'Jinx', 'Yasuo']
 const TEST_EMOJIS = ['🦊', '🐼', '🦁', '🐸', '🤖', '👽', '🧙', '🥳', '😎', '🤠']
 
 function randomItem<T>(arr: T[]): T {
@@ -78,7 +78,7 @@ export default function LobbyPage() {
     const pidFromUrl = searchParams.get('pid') ?? ''
     if (pidFromUrl) {
       // Returning from play page — reconnect with the same identity
-      const storedName = localStorage.getItem('name') ?? 'Player 2'
+      const storedName = localStorage.getItem('name') ?? 'Javi'
       const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
       setName(storedName)
       setEmoji(storedEmoji)

@@ -14,8 +14,8 @@ class TestRoomModel:
         assert room.id == room.id.upper()
 
     def test_create_player(self):
-        player = Player(name="Ana", emoji="🎉")
-        assert player.name == "Ana"
+        player = Player(name="Julia", emoji="🎉")
+        assert player.name == "Julia"
         assert player.emoji == "🎉"
         assert player.score == 0
         assert player.is_host is False
@@ -25,24 +25,24 @@ class TestRoomModel:
         room = Room()
         room.config.max_players = 2
         room.players = [
-            Player(name="Ana", emoji="🎉"),
-            Player(name="Bob", emoji="🎮"),
+            Player(name="Julia", emoji="🎉"),
+            Player(name="Adria", emoji="🎮"),
         ]
         assert room.is_full() is True
 
     def test_room_is_not_full(self):
         room = Room()
         room.config.max_players = 4
-        room.players = [Player(name="Ana", emoji="🎉")]
+        room.players = [Player(name="Julia", emoji="🎉")]
         assert room.is_full() is False
 
     def test_get_player_by_id_found(self):
-        player = Player(name="Ana", emoji="🎉")
+        player = Player(name="Julia", emoji="🎉")
         room = Room()
         room.players = [player]
         result = room.get_player_by_id(player.id)
         assert result is not None
-        assert result.name == "Ana"
+        assert result.name == "Julia"
 
     def test_get_player_by_id_not_found(self):
         room = Room()
@@ -57,7 +57,7 @@ class TestRoomsApi:
 
         response = await client.post(
             "/api/rooms/",
-            json={"host_name": "Ana", "host_emoji": "🎉"},
+            json={"host_name": "Julia", "host_emoji": "🎉"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -76,7 +76,7 @@ class TestRoomsApi:
     @pytest.mark.asyncio
     async def test_get_room_found(self, client, mock_redis):
         room = Room()
-        room.players.append(Player(name="Ana", emoji="🎉", is_host=True))
+        room.players.append(Player(name="Julia", emoji="🎉", is_host=True))
         mock_redis.get = AsyncMock(return_value=room.model_dump_json().encode())
 
         response = await client.get(f"/api/rooms/{room.id}")
@@ -112,7 +112,7 @@ class TestRoomJoinSocket:
     async def test_reconnect_reuses_existing_player(self):
         """Sending an existing player_id should reuse that player, not create a new one."""
         room = Room()
-        host = Player(name="Alice", emoji="🐱", is_host=True)
+        host = Player(name="Javi", emoji="🐱", is_host=True)
         room.players = [host]
         room.host_id = host.id
 
@@ -141,9 +141,9 @@ class TestRoomJoinSocket:
             register_room_events(sio)
 
             handler = captured["room:join"]
-            await handler("sid-alice", {
+            await handler("sid-javi", {
                 "room_id": room.id,
-                "name": "Alice",
+                "name": "Javi",
                 "emoji": "🐱",
                 "player_id": host.id,
             })
@@ -159,7 +159,7 @@ class TestRoomJoinSocket:
     async def test_unknown_player_id_creates_new_player(self):
         """Sending an unknown player_id (not in the room) creates a new player."""
         room = Room()
-        host = Player(name="Alice", emoji="🐱", is_host=True)
+        host = Player(name="Javi", emoji="🐱", is_host=True)
         room.players = [host]
         room.host_id = host.id
 
@@ -183,9 +183,9 @@ class TestRoomJoinSocket:
             register_room_events(sio)
 
             handler = captured["room:join"]
-            await handler("sid-bob", {
+            await handler("sid-oscar", {
                 "room_id": room.id,
-                "name": "Bob",
+                "name": "Oscar",
                 "emoji": "🐶",
                 "player_id": "does-not-exist",
             })

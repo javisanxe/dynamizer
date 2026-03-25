@@ -3,8 +3,8 @@ import TicTacToePlay from '../TicTacToePlay'
 import type { TicTacToeState } from '@/types/game'
 import type { Player } from '@/types/room'
 
-const player1: Player = { id: 'p1', name: 'Alice', emoji: '🐱', score: 0, is_host: true, connected: true }
-const player2: Player = { id: 'p2', name: 'Bob', emoji: '🐶', score: 0, is_host: false, connected: true }
+const player1: Player = { id: 'p1', name: 'Javi', emoji: '🐱', score: 0, is_host: true, connected: true }
+const player2: Player = { id: 'p2', name: 'Adria', emoji: '🐶', score: 0, is_host: false, connected: true }
 const players = [player1, player2]
 
 function makeState(overrides: Partial<TicTacToeState> = {}): TicTacToeState {
@@ -59,7 +59,7 @@ describe('TicTacToePlay', () => {
         onMove={jest.fn()}
       />
     )
-    expect(screen.getByText(/Bob's turn/)).toBeInTheDocument()
+    expect(screen.getByText(/Adria's turn/)).toBeInTheDocument()
   })
 
   it('calls onMove with the correct cell index when clicked', () => {
@@ -150,7 +150,7 @@ describe('TicTacToePlay', () => {
         onMove={jest.fn()}
       />
     )
-    expect(screen.getByText('Bob wins!')).toBeInTheDocument()
+    expect(screen.getByText('Adria wins!')).toBeInTheDocument()
   })
 
   it('shows draw overlay when game ends in a draw', () => {
@@ -199,8 +199,8 @@ describe('TicTacToePlay', () => {
     )
     // Scope to the result overlay to avoid collision with the always-visible players card
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Alice')
-    expect(dialog).toHaveTextContent('Bob')
+    expect(dialog).toHaveTextContent('Javi')
+    expect(dialog).toHaveTextContent('Adria')
     expect(dialog).toHaveTextContent('3 pt')
     expect(dialog).toHaveTextContent('0 pt')
   })

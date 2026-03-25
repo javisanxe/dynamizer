@@ -13,8 +13,8 @@ def engine():
 def two_player_room():
     room = Room()
     room.players = [
-        Player(name="Alice", emoji="🐱", is_host=True),
-        Player(name="Bob", emoji="🐶"),
+        Player(name="Javi", emoji="🐱", is_host=True),
+        Player(name="Adria", emoji="🐶"),
     ]
     room.host_id = room.players[0].id
     return room

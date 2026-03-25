@@ -42,7 +42,7 @@ describe('HomePage', () => {
   it('shows error when trying to join without a room code', () => {
     render(<HomePage />)
     const nameInput = screen.getByPlaceholderText('Your name')
-    fireEvent.change(nameInput, { target: { value: 'Ana' } })
+    fireEvent.change(nameInput, { target: { value: 'Julia' } })
     fireEvent.click(screen.getByRole('button', { name: /join/i }))
     expect(screen.getByText('Enter the room code')).toBeInTheDocument()
   })

@@ -12,7 +12,7 @@ def service():
 @pytest.fixture
 def sample_room():
     room = Room()
-    room.players.append(Player(name="Ana", emoji="🎉", is_host=True))
+    room.players.append(Player(name="Julia", emoji="🎉", is_host=True))
     return room
 
 
@@ -28,7 +28,7 @@ class TestRoomService:
 
         assert result is not None
         assert result.id == sample_room.id
-        assert result.players[0].name == "Ana"
+        assert result.players[0].name == "Julia"
 
     @pytest.mark.asyncio
     async def test_get_nonexistent_room(self, service, mock_redis):

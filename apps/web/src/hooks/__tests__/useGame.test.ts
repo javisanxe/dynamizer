@@ -66,11 +66,11 @@ describe('useGame', () => {
   it('join() sends player_id when provided (reconnection)', () => {
     const { result } = renderHook(() => useGame('ABC123', 'player-1'))
     act(() => {
-      result.current.join('Alice', '🐱', 'existing-id')
+      result.current.join('Javi', '🐱', 'existing-id')
     })
     expect(mockEmit).toHaveBeenCalledWith('room:join', {
       room_id: 'ABC123',
-      name: 'Alice',
+      name: 'Javi',
       emoji: '🐱',
       player_id: 'existing-id',
     })
@@ -79,11 +79,11 @@ describe('useGame', () => {
   it('join() sends undefined player_id when not provided (new player)', () => {
     const { result } = renderHook(() => useGame('ABC123', 'player-1'))
     act(() => {
-      result.current.join('Alice', '🐱')
+      result.current.join('Javi', '🐱')
     })
     expect(mockEmit).toHaveBeenCalledWith('room:join', {
       room_id: 'ABC123',
-      name: 'Alice',
+      name: 'Javi',
       emoji: '🐱',
       player_id: undefined,
     })

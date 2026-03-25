@@ -29,8 +29,8 @@ const baseRoom: Room = {
   status: 'playing',
   host_id: 'p1',
   players: [
-    { id: 'p1', name: 'Alice', emoji: '🐱', score: 0, is_host: true, connected: true },
-    { id: 'p2', name: 'Bob', emoji: '🐶', score: 0, is_host: false, connected: true },
+    { id: 'p1', name: 'Javi', emoji: '🐱', score: 0, is_host: true, connected: true },
+    { id: 'p2', name: 'Adria', emoji: '🐶', score: 0, is_host: false, connected: true },
   ],
   config: { game: 'tic_tac_toe', max_players: 2 },
 }

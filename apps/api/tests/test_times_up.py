@@ -10,9 +10,9 @@ from app.games.times_up.config import TimesUpConfig
 def room_with_players():
     room = Room()
     room.players = [
-        Player(name="Ana",   emoji="🎉", is_host=True),
-        Player(name="Bob",   emoji="🎮"),
-        Player(name="Carol", emoji="🌟"),
+        Player(name="Julia",  emoji="🎉", is_host=True),
+        Player(name="Smoky",  emoji="🎮"),
+        Player(name="Brotón", emoji="🌟"),
     ]
     room.host_id = room.players[0].id
     return room
