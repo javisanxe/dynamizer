@@ -22,7 +22,7 @@ export default function Navbar() {
           🎮 <span>Dynamizer</span>
         </Link>
 
-        <ul className={`navbar-links${open ? ' navbar-links--open' : ''}`}>
+        <ul id="navbar-menu" className={`navbar-links${open ? ' navbar-links--open' : ''}`}>
           {NAV_LINKS.map(({ href, label }) => (
             <li key={href}>
               <Link
@@ -44,6 +44,7 @@ export default function Navbar() {
           className="navbar-hamburger"
           aria-label="Toggle menu"
           aria-expanded={open}
+          aria-controls="navbar-menu"
           onClick={() => setOpen((v) => !v)}
         >
           <span className="navbar-hamburger__bar" />

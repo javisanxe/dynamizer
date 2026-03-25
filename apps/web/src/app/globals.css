@@ -1095,10 +1095,6 @@ html {
     padding: var(--space-sm) var(--space-md);
   }
 
-  .navbar {
-    position: sticky;
-    top: 0;
-  }
 }
 
 /* ─── Stats bar (about page) ─────────────────────────────────────────────────── */
