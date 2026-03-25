@@ -4,11 +4,29 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import EmojiPicker from '@/components/EmojiPicker'
 
+type GameSlug = 'times_up' | 'tic_tac_toe'
+
+const GAMES: { slug: GameSlug; icon: string; title: string; description: string }[] = [
+  {
+    slug: 'times_up',
+    icon: '🃏',
+    title: "Time's Up",
+    description: 'Guess famous characters in 3 rounds. 2-8 players.',
+  },
+  {
+    slug: 'tic_tac_toe',
+    icon: '⬜',
+    title: 'Tic-Tac-Toe',
+    description: 'Classic 3-in-a-row. Exactly 2 players.',
+  },
+]
+
 export default function HomePage() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('🎮')
   const [roomId, setRoomId] = useState('')
+  const [selectedGame, setSelectedGame] = useState<GameSlug>('times_up')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,10 +40,14 @@ export default function HomePage() {
       const res = await fetch(`${API_URL}/api/rooms/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host_name: name, host_emoji: emoji }),
+        body: JSON.stringify({
+          host_name: name,
+          host_emoji: emoji,
+          config: { game: selectedGame },
+        }),
       })
       const data = await res.json()
-      localStorage.setItem('player_id', data.player_id)
+      localStorage.setItem(`player_${data.room_id}`, data.player_id)
       localStorage.setItem('name', name)
       localStorage.setItem('emoji', emoji)
       router.push(`/room/${data.room_id}`)
@@ -85,9 +107,23 @@ export default function HomePage() {
         {/* Create room */}
         <div className="card">
           <p className="section-title">Create a room</p>
-          <p style={{ fontSize: '0.9rem', marginBottom: 'var(--space-md)' }}>
-            Start a new game and invite your friends via QR or code.
-          </p>
+
+          {/* Game selector */}
+          <div className="game-selector" style={{ marginBottom: 'var(--space-md)' }}>
+            {GAMES.map((g) => (
+              <button
+                key={g.slug}
+                className={`game-option${selectedGame === g.slug ? ' game-option--active' : ''}`}
+                onClick={() => setSelectedGame(g.slug)}
+                type="button"
+              >
+                <span className="game-option__icon">{g.icon}</span>
+                <span className="game-option__title">{g.title}</span>
+                <span className="game-option__desc">{g.description}</span>
+              </button>
+            ))}
+          </div>
+
           <button
             className="btn btn-primary btn-full btn-lg"
             onClick={createRoom}

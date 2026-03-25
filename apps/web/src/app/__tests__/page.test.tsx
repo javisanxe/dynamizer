@@ -27,6 +27,12 @@ describe('HomePage', () => {
     expect(screen.getByPlaceholderText('Your name')).toBeInTheDocument()
   })
 
+  it('renders both game options', () => {
+    render(<HomePage />)
+    expect(screen.getByText("Time's Up")).toBeInTheDocument()
+    expect(screen.getByText('Tic-Tac-Toe')).toBeInTheDocument()
+  })
+
   it('shows error when trying to create a room without a name', () => {
     render(<HomePage />)
     fireEvent.click(screen.getByRole('button', { name: /create room/i }))
@@ -36,7 +42,7 @@ describe('HomePage', () => {
   it('shows error when trying to join without a room code', () => {
     render(<HomePage />)
     const nameInput = screen.getByPlaceholderText('Your name')
-    fireEvent.change(nameInput, { target: { value: 'Ana' } })
+    fireEvent.change(nameInput, { target: { value: 'Julia' } })
     fireEvent.click(screen.getByRole('button', { name: /join/i }))
     expect(screen.getByText('Enter the room code')).toBeInTheDocument()
   })

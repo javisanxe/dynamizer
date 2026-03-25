@@ -1,21 +1,100 @@
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useGame } from '@/hooks/useGame'
+import TicTacToePlay from '@/components/TicTacToePlay'
 
 export default function PlayPage() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const roomId = params.id as string
-  const [playerId, setPlayerId] = useState<string>('')
 
+  // ?pid= takes priority over localStorage — lets test-player tabs carry their
+  // own identity without sharing the host's localStorage entry.
+  const pidFromUrl = searchParams.get('pid') ?? ''
+  const storedId = typeof window !== 'undefined'
+    ? (localStorage.getItem(`player_${roomId}`) ?? '')
+    : ''
+  const resolvedId = pidFromUrl || storedId
+
+  const [playerId] = useState<string>(resolvedId)
+
+  const { room, error, socketStatus, tttState, gameResult, cardGuessed, cardPassed, makeMove, join } =
+    useGame(roomId, playerId)
+
+  // Reconnect this socket to the room group so we receive game:started / game:updated
   useEffect(() => {
-    const id = localStorage.getItem('player_id') ?? ''
-    setPlayerId(id)
-  }, [])
+    if (socketStatus !== 'connected') return
+    if (!playerId) return
+    const storedName = localStorage.getItem('name') ?? ''
+    const storedEmoji = localStorage.getItem('emoji') ?? '🎮'
+    join(storedName, storedEmoji, playerId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socketStatus])
 
-  const { room, error, socketStatus, cardGuessed, cardPassed } = useGame(roomId, playerId)
+  // ── Loading / no room yet ──────────────────────────────────────────────────
+  if (!room) {
+    return (
+      <div className="page">
+        <div className="container">
+          <div className="card" style={{ textAlign: 'center' }}>
+            <p style={{ color: 'var(--color-text-muted)' }}>
+              {error ?? 'Connecting...'}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
+  // ── Tic-Tac-Toe ────────────────────────────────────────────────────────────
+  if (room.config.game === 'tic_tac_toe') {
+    return (
+      <div className="page" style={{ justifyContent: 'flex-start', paddingTop: 'var(--space-lg)' }}>
+        <div className="container">
+
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-lg)' }}>
+            <div>
+              <h1 style={{ fontSize: '1.25rem', color: 'var(--color-text)' }}>⬜ Tic-Tac-Toe</h1>
+              <p style={{ fontSize: '0.8rem' }}>
+                Room <span style={{ color: 'var(--color-accent)', fontWeight: 700 }}>{roomId}</span>
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+              <span className={`status-dot ${socketStatus}`} />
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{socketStatus}</span>
+            </div>
+          </div>
+
+          {error && (
+            <div className="error-msg" style={{ marginBottom: 'var(--space-md)' }}>
+              {error}
+            </div>
+          )}
+
+          {tttState ? (
+            <TicTacToePlay
+              state={tttState}
+              players={room.players}
+              myPlayerId={playerId}
+              gameResult={gameResult}
+              onMove={makeMove}
+              onPlayAgain={() => router.push(playerId ? `/room/${roomId}?pid=${playerId}` : `/room/${roomId}`)}
+            />
+          ) : (
+            <div className="card" style={{ textAlign: 'center' }}>
+              <p style={{ color: 'var(--color-text-muted)' }}>Loading game...</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Time's Up (default / fallback) ─────────────────────────────────────────
   return (
     <div className="page" style={{ justifyContent: 'flex-start', paddingTop: 'var(--space-lg)' }}>
       <div className="container">
@@ -41,31 +120,29 @@ export default function PlayPage() {
         )}
 
         {/* Scoreboard */}
-        {room && (
-          <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
-            <p className="section-title">Scoreboard</p>
-            <ul className="player-list">
-              {[...room.players]
-                .sort((a, b) => b.score - a.score)
-                .map((p, i) => (
-                  <li key={p.id} className="player-item">
-                    <span style={{ fontSize: '0.9rem', color: 'var(--color-text-faint)', width: '1.2rem' }}>
-                      {i + 1}
-                    </span>
-                    <span className="player-emoji">{p.emoji}</span>
-                    <span className="player-name">{p.name}</span>
-                    <span style={{
-                      fontFamily: 'var(--font-display)',
-                      fontWeight: 800,
-                      color: i === 0 ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                    }}>
-                      {p.score} pts
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        )}
+        <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+          <p className="section-title">Scoreboard</p>
+          <ul className="player-list">
+            {[...room.players]
+              .sort((a, b) => b.score - a.score)
+              .map((p, i) => (
+                <li key={p.id} className="player-item">
+                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-faint)', width: '1.2rem' }}>
+                    {i + 1}
+                  </span>
+                  <span className="player-emoji">{p.emoji}</span>
+                  <span className="player-name">{p.name}</span>
+                  <span style={{
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    color: i === 0 ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                  }}>
+                    {p.score} pts
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
 
         {/* Turn area — placeholder until game logic is wired */}
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl) var(--space-lg)' }}>

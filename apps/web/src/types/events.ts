@@ -30,6 +30,12 @@ export interface GameCardPassedPayload {
   card_id: string
 }
 
+export interface GameMakeMovePayload {
+  room_id: string
+  player_id: string
+  cell_index: number
+}
+
 // --- Events RECEIVED by the client ---
 
 export interface ErrorPayload {
@@ -49,4 +55,5 @@ export type ClientToServerEvents = {
   'game:start': (payload: GameStartPayload) => void
   'game:card_guessed': (payload: GameCardGuessedPayload) => void
   'game:card_passed': (payload: GameCardPassedPayload) => void
+  'game:make_move': (payload: GameMakeMovePayload) => void
 }
